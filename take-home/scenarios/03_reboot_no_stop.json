@@ -1,0 +1,103 @@
+{
+  "name": "Reboot without StopTransaction",
+  "description": "Session starts, then the charge point reboots (new BootNotification) and never stops the session.",
+  "check": [
+    "the session is not shown as active/charging forever",
+    "it uses the last known meter value (7000 Wh -> 6.0 kWh) or is flagged as unknown",
+    "README explains the choice"
+  ],
+  "steps": [
+    {
+      "conn": "a",
+      "open": "$station"
+    },
+    {
+      "conn": "a",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "a",
+      "call": "StartTransaction",
+      "payload": {
+        "connectorId": 1,
+        "idTag": "$idtag",
+        "meterStart": 1000,
+        "timestamp": "$ts(-60m)"
+      },
+      "save": {
+        "tx": "transactionId"
+      },
+      "require": [
+        "idTagInfo"
+      ],
+      "expect_status": "Accepted"
+    },
+    {
+      "conn": "a",
+      "call": "MeterValues",
+      "payload": {
+        "connectorId": 1,
+        "transactionId": "$tx",
+        "meterValue": [
+          {
+            "timestamp": "$ts(-30m)",
+            "sampledValue": [
+              {
+                "value": "7000",
+                "measurand": "Energy.Active.Import.Register",
+                "unit": "Wh"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "conn": "a",
+      "close": true
+    },
+    {
+      "sleep": 0.3
+    },
+    {
+      "conn": "b",
+      "open": "$station"
+    },
+    {
+      "conn": "b",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "b",
+      "call": "StatusNotification",
+      "payload": {
+        "connectorId": 1,
+        "status": "Available",
+        "errorCode": "NoError",
+        "timestamp": "$ts(-1m)"
+      }
+    },
+    {
+      "conn": "b",
+      "close": true
+    }
+  ]
+}

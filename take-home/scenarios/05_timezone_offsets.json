@@ -1,0 +1,59 @@
+{
+  "name": "Timestamps with timezone offsets",
+  "description": "Start is sent with +02:00, stop with Z. Real duration is 45 minutes.",
+  "check": [
+    "times are correct UTC instants",
+    "duration is 45 minutes (not 2 h 45 min or negative)",
+    "energy 8.0 kWh"
+  ],
+  "steps": [
+    {
+      "conn": "a",
+      "open": "$station"
+    },
+    {
+      "conn": "a",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "a",
+      "call": "StartTransaction",
+      "payload": {
+        "connectorId": 1,
+        "idTag": "$idtag",
+        "meterStart": 1000,
+        "timestamp": "$ts(-50m,+02:00)"
+      },
+      "save": {
+        "tx": "transactionId"
+      },
+      "require": [
+        "idTagInfo"
+      ],
+      "expect_status": "Accepted"
+    },
+    {
+      "conn": "a",
+      "call": "StopTransaction",
+      "payload": {
+        "transactionId": "$tx",
+        "meterStop": 9000,
+        "timestamp": "$ts(-5m)",
+        "reason": "Local"
+      }
+    },
+    {
+      "conn": "a",
+      "close": true
+    }
+  ]
+}

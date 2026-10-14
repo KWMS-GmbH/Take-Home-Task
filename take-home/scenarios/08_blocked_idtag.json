@@ -1,0 +1,70 @@
+{
+  "name": "idTag not permitted at this station",
+  "description": "A driver whose idTag is not permitted (or unknown) at $station tries to charge; the charge point starts anyway, as many do.",
+  "check": [
+    "Authorize and StartTransaction both answer a non-Accepted status (Blocked / Invalid)",
+    "StartTransaction still returns a transactionId (it is required by OCPP)",
+    "the attempt is not shown as a normal, billable session for $blocked_idtag; README explains how it is recorded"
+  ],
+  "steps": [
+    {
+      "conn": "a",
+      "open": "$station"
+    },
+    {
+      "conn": "a",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "a",
+      "call": "Authorize",
+      "payload": {
+        "idTag": "$blocked_idtag"
+      },
+      "require": [
+        "idTagInfo"
+      ],
+      "expect_status": "!Accepted"
+    },
+    {
+      "conn": "a",
+      "call": "StartTransaction",
+      "payload": {
+        "connectorId": 1,
+        "idTag": "$blocked_idtag",
+        "meterStart": 1000,
+        "timestamp": "$ts(-60m)"
+      },
+      "save": {
+        "tx": "transactionId"
+      },
+      "require": [
+        "idTagInfo"
+      ],
+      "expect_status": "!Accepted"
+    },
+    {
+      "conn": "a",
+      "call": "StopTransaction",
+      "payload": {
+        "transactionId": "$tx",
+        "meterStop": 1500,
+        "timestamp": "$ts(-5m)",
+        "reason": "Local"
+      }
+    },
+    {
+      "conn": "a",
+      "close": true
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "name": "Second connection for the same charge point + garbage input",
+  "description": "A new connection opens while the old one is still open; then invalid frames are sent.",
+  "check": [
+    "the session started on connection a and stopped on connection b is one completed session (3.0 kWh)",
+    "the service is still healthy: $station-OTHER could connect, the frontend still works",
+    "README explains what happens to the old connection"
+  ],
+  "steps": [
+    {
+      "conn": "a",
+      "open": "$station",
+      "may_close": true
+    },
+    {
+      "conn": "a",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ],
+      "may_close": true
+    },
+    {
+      "conn": "a",
+      "call": "StartTransaction",
+      "payload": {
+        "connectorId": 1,
+        "idTag": "$idtag",
+        "meterStart": 1000,
+        "timestamp": "$ts(-60m)"
+      },
+      "save": {
+        "tx": "transactionId"
+      },
+      "require": [
+        "idTagInfo"
+      ],
+      "expect_status": "Accepted",
+      "may_close": true
+    },
+    {
+      "conn": "b",
+      "open": "$station"
+    },
+    {
+      "conn": "b",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "b",
+      "call": "StopTransaction",
+      "payload": {
+        "transactionId": "$tx",
+        "meterStop": 4000,
+        "timestamp": "$ts(-5m)",
+        "reason": "Local"
+      }
+    },
+    {
+      "conn": "b",
+      "raw": "this is not json",
+      "expect": "any"
+    },
+    {
+      "conn": "b",
+      "raw": "[2, \"garbage-1\", \"StartTransaction\"]",
+      "expect": "any"
+    },
+    {
+      "conn": "b",
+      "call": "DataTransfer",
+      "payload": {
+        "vendorId": "ACME"
+      },
+      "expect": "callerror"
+    },
+    {
+      "conn": "b",
+      "call": "StartTransaction",
+      "payload": {
+        "connectorId": 1
+      },
+      "expect": "callerror"
+    },
+    {
+      "conn": "b",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "c",
+      "open": "$station-OTHER"
+    },
+    {
+      "conn": "c",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "c",
+      "close": true
+    },
+    {
+      "conn": "b",
+      "close": true
+    }
+  ]
+}

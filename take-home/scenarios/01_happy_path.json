@@ -1,0 +1,140 @@
+{
+  "name": "Happy path",
+  "description": "Authorize, start, two meter values, stop. 10 kWh delivered.",
+  "check": [
+    "one new completed session for $station / $idtag",
+    "energy = (11000 - 1000) Wh = 10.0 kWh",
+    "start ~60 min ago, stop ~5 min ago (UTC)"
+  ],
+  "steps": [
+    {
+      "conn": "a",
+      "open": "$station"
+    },
+    {
+      "conn": "a",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "a",
+      "call": "Authorize",
+      "payload": {
+        "idTag": "$idtag"
+      },
+      "require": [
+        "idTagInfo"
+      ],
+      "expect_status": "Accepted"
+    },
+    {
+      "conn": "a",
+      "call": "StatusNotification",
+      "payload": {
+        "connectorId": 1,
+        "status": "Preparing",
+        "errorCode": "NoError",
+        "timestamp": "$ts(-61m)"
+      }
+    },
+    {
+      "conn": "a",
+      "call": "StartTransaction",
+      "payload": {
+        "connectorId": 1,
+        "idTag": "$idtag",
+        "meterStart": 1000,
+        "timestamp": "$ts(-60m)"
+      },
+      "save": {
+        "tx": "transactionId"
+      },
+      "require": [
+        "idTagInfo"
+      ],
+      "expect_status": "Accepted"
+    },
+    {
+      "conn": "a",
+      "call": "StatusNotification",
+      "payload": {
+        "connectorId": 1,
+        "status": "Charging",
+        "errorCode": "NoError",
+        "timestamp": "$ts(-59m)"
+      }
+    },
+    {
+      "conn": "a",
+      "call": "MeterValues",
+      "payload": {
+        "connectorId": 1,
+        "transactionId": "$tx",
+        "meterValue": [
+          {
+            "timestamp": "$ts(-40m)",
+            "sampledValue": [
+              {
+                "value": "4000",
+                "measurand": "Energy.Active.Import.Register",
+                "unit": "Wh"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "conn": "a",
+      "call": "MeterValues",
+      "payload": {
+        "connectorId": 1,
+        "transactionId": "$tx",
+        "meterValue": [
+          {
+            "timestamp": "$ts(-20m)",
+            "sampledValue": [
+              {
+                "value": "8000",
+                "measurand": "Energy.Active.Import.Register",
+                "unit": "Wh"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "conn": "a",
+      "call": "StopTransaction",
+      "payload": {
+        "transactionId": "$tx",
+        "meterStop": 11000,
+        "timestamp": "$ts(-5m)",
+        "reason": "Local"
+      }
+    },
+    {
+      "conn": "a",
+      "call": "StatusNotification",
+      "payload": {
+        "connectorId": 1,
+        "status": "Available",
+        "errorCode": "NoError",
+        "timestamp": "$ts(-5m)"
+      }
+    },
+    {
+      "conn": "a",
+      "close": true
+    }
+  ]
+}

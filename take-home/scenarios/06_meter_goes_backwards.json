@@ -1,0 +1,58 @@
+{
+  "name": "meterStop smaller than meterStart",
+  "description": "The meter was replaced during the session: meterStart=500000, meterStop=1200.",
+  "check": [
+    "the session does NOT report negative energy",
+    "it is flagged for review, or handled in a way the README explains"
+  ],
+  "steps": [
+    {
+      "conn": "a",
+      "open": "$station"
+    },
+    {
+      "conn": "a",
+      "call": "BootNotification",
+      "payload": {
+        "chargePointVendor": "ACME",
+        "chargePointModel": "DC-150"
+      },
+      "require": [
+        "status",
+        "currentTime",
+        "interval"
+      ]
+    },
+    {
+      "conn": "a",
+      "call": "StartTransaction",
+      "payload": {
+        "connectorId": 1,
+        "idTag": "$idtag",
+        "meterStart": 500000,
+        "timestamp": "$ts(-60m)"
+      },
+      "save": {
+        "tx": "transactionId"
+      },
+      "require": [
+        "idTagInfo"
+      ],
+      "expect_status": "Accepted"
+    },
+    {
+      "conn": "a",
+      "call": "StopTransaction",
+      "payload": {
+        "transactionId": "$tx",
+        "meterStop": 1200,
+        "timestamp": "$ts(-5m)",
+        "reason": "Local"
+      }
+    },
+    {
+      "conn": "a",
+      "close": true
+    }
+  ]
+}
