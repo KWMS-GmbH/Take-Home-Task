@@ -29,6 +29,7 @@ from backend.service import (
     StaleConnection,
     ValidationError,
 )
+from backend.simulation import token_uuid
 
 LOGGER = logging.getLogger(__name__)
 STATION_PATH = re.compile(r"/ocpp/([A-Za-z0-9][A-Za-z0-9._:-]{0,63})\Z")
@@ -134,7 +135,21 @@ class OcppServer:
             return connection.respond(404, "Unknown OCPP path\n")
         if len(self.connections) >= self.max_connections:
             return connection.respond(503, "Connection capacity reached\n")
+        try:
+            self._simulation_token(request)
+        except ValidationError:
+            return connection.respond(400, "Invalid simulation token header\n")
         return None
+
+    @staticmethod
+    def _simulation_token(request: Request) -> str | None:
+        values = request.headers.get_all("X-Simulation-Token")
+        if not values:
+            return None
+        if len(values) != 1:
+            raise ValidationError("only one simulation token header is allowed")
+        token_uuid(values[0])
+        return values[0]
 
     async def handle(self, connection: ServerConnection) -> None:
         if len(self.connections) >= self.max_connections:
@@ -148,8 +163,15 @@ class OcppServer:
         station_id = match[1]
         context = {"station": station_id, "connection": connection_id}
         try:
+            simulation_token = self._simulation_token(connection.request)
+            simulation_metadata = (
+                {"simulation_token": simulation_token} if simulation_token is not None else {}
+            )
             generation = await self.service.register_connection(
-                station_id, connection_id, self.instance_id
+                station_id,
+                connection_id,
+                self.instance_id,
+                **simulation_metadata,
             )
             LOGGER.info("ocpp_connected", extra=context)
             tokens = 40.0
@@ -197,6 +219,7 @@ class OcppServer:
                         call.action,
                         call.payload,
                         validate_response,
+                        **simulation_metadata,
                     )
                 except StaleConnection:
                     await connection.close(1008, "Superseded station connection")
@@ -238,6 +261,8 @@ class OcppServer:
             await connection.close(1001, "Request limit; reconnect")
         except ConnectionClosed:
             pass
+        except (StaleConnection, ValidationError):
+            await connection.close(1008, "Invalid or expired simulation connection")
         except Exception as exc:
             LOGGER.error(
                 "ocpp_connection_failed", extra={**context, "error_type": type(exc).__name__}

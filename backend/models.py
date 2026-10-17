@@ -234,3 +234,23 @@ class ConnectorStatus(Base):
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class SimulationSlot(Base):
+    """Two pre-created coordination rows, not station or charging demo data."""
+
+    __tablename__ = "simulation_slots"
+    __table_args__ = (
+        CheckConstraint("slot IN (1, 2)", name="ck_simulation_slots_fixed_capacity"),
+        CheckConstraint(
+            "(primary_station_id IS NULL AND token IS NULL AND expires_at IS NULL) OR "
+            "(primary_station_id IS NOT NULL AND token IS NOT NULL AND expires_at IS NOT NULL)",
+            name="ck_simulation_slots_complete_lease",
+        ),
+        UniqueConstraint("token", name="uq_simulation_slots_token"),
+    )
+
+    slot: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    primary_station_id: Mapped[str | None] = mapped_column(ForeignKey("stations.id"))
+    token: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
