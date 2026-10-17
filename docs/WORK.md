@@ -142,8 +142,9 @@ case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 ## WP-3 — Three-replica reliability and bounded operation
 
 Status: candidate approved two PRs, isolated fault tests and conservative retention
-on 2026-10-17 (D-31/D-32). WP-3a manually merged; WP-3b is in discussion/preparation
-and still needs agreement on its concrete safeguards. Extend existing foundations
+on 2026-10-17 (D-31/D-32). WP-3a manually merged; candidate explicitly approved WP-3b
+defaults (D-33–D-35). Implementation follows SPEC.md and [plan](plans/WP-3b.md).
+Extend existing foundations
 to charging races, crashes, load, retention and operational recovery.
 
 - [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
@@ -187,10 +188,10 @@ Branch `codex/reliability-slice`; production application/schema/deployment uncha
 
 ### WP-3b — bounded operation, recovery and safe maintenance
 
-Discussion/preparation only. No implementation or fault injection yet. Concrete
-workload/maintenance/health safeguards need agreement, spec and persisted plan.
+In progress after explicit candidate approval. Branch `codex/operations-slice`,
+based on manually merged WP-3a `3699be9`; concrete contract and plan persisted.
 
-Proposals, **not yet approved**:
+Approved defaults, with concrete safeguards in SPEC.md:
 
 - Separate restart health (application/listener liveness) from dependency readiness;
   retain generic 503/error behavior while DB is unavailable, without treating a shared
@@ -205,7 +206,16 @@ Proposals, **not yet approved**:
   minimum age by default and 100 replay rows per batch. Lock station first and compare
   strictly against active generation, preserving current and pending higher generations.
   Preserve business records/existing audit; add one summary audit per applied batch.
-  No global sweep or scheduled purge; concrete caps/CLI safeguards still need agreement.
+  No global sweep or scheduled purge. Fixed seven-day age, one station, cap 100 per
+  invocation, dry-run without writes; deployed verification never applies cleanup.
+
+- [x] Approve scope/defaults; persist contract and implementation plan.
+- [ ] Separate liveness/restart health and dependency readiness; retain deployment readiness gate.
+- [ ] Owned volume-backed DB stop/restart proof with unchanged app instances/data integrity.
+- [ ] Real pool/lock/socket bounds and 12-station correctness workload.
+- [ ] Safe station-specific dry-run/apply CLI, audit/rollback/concurrency regressions.
+- [ ] Full/static/source/recovery/deployment gates and independent reviews; honest evidence.
+- [ ] Layered KWMS PR/current-head CI handoff and candidate manual merge.
 
 ## WP-4 — Independent acceptance and submission
 
