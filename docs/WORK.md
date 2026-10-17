@@ -242,8 +242,10 @@ No original requirement or working domain policy is replaced by this cleanup.
 
 ### WP-R1 — Backend readability
 
-Status: local verification complete; publication/current-head CI and candidate
-manual review/merge remain. Branch `codex/backend-readability`, based on `9c66794`.
+Status: awaiting candidate review/merge in
+[KWMS PR #6](https://github.com/KWMS-GmbH/Take-Home-Task/pull/6).
+Local gates pass; current-head Checks determine readiness, with pending/failed CI
+keeping the PR draft. Branch `codex/backend-readability`, based on `9c66794`.
 Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
 
 - [x] Targeted grilling/approval, baseline risk review, concrete contract and plan.
@@ -251,7 +253,7 @@ Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
   make the transaction coordinator and named charging handlers easy to follow.
 - [x] Useful baseline characterization, unchanged original tests and failure boundaries.
 - [x] Static/full/recovery/redeploy/smoke gates and independent equivalence/readability review.
-- [ ] Publish layered KWMS PR; exact-head CI gates ready status before handoff.
+- [x] Publish layered KWMS PR; exact-head CI gates ready status before handoff.
 - [ ] Candidate manually reviews/merges; no dependent implementation beforehand.
 
 ### WP-R2 — Frontend/simulator readability
@@ -622,3 +624,10 @@ commit, findings addressed, and remaining limitations at each gate.
   Context naming nit resolved. Static checking caught a mechanical extraction syntax
   typo before focused runtime tests; no functional fix was needed. Full equivalence
   is not mathematically proved; candidate understanding and WP-4 remain separate.
+- WP-R1 publication: four coherent contract/test/runtime/evidence commits pushed;
+  [PR #6](https://github.com/KWMS-GmbH/Take-Home-Task/pull/6) opened draft with a
+  layered overview, business/technical workflow, module map, rationale, risks, actual
+  evidence and interview/review route. Independent description/documentation review
+  finds no blocker; fresh-Start versus retry wording clarified. Current-head remote
+  CI determines ready status; only the candidate reviews/merges. This publication
+  checkpoint does not claim final acceptance or authorize starting WP-R2 beforehand.

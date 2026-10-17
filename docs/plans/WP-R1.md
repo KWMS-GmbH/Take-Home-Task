@@ -30,6 +30,6 @@ Execution checkpoint: three characterization cases passed on the unchanged backe
 before extraction. Direct cohesive modules and named charging handlers are implemented;
 independent diff/architecture review finds no behavior defect or blocker. Final 67
 focused/327 full tests, source/static gates, actual isolated DB recovery and normal
-three-replica redeploy/smoke pass. WORK.md records scope and limitations. Publication,
-exact-head CI readiness and candidate manual review/merge remain the handoff gates;
+three-replica redeploy/smoke pass. WORK.md records scope and limitations. Draft PR #6
+is published; exact-head CI readiness and candidate manual review/merge remain gates;
 frontend and documentation reorganization have not started.
