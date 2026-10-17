@@ -16,6 +16,7 @@ All displayed times use Europe/Berlin (UTC+02:00 on these dates).
 | 2026-10-17, approximately 11:58–12:04 | WP-0 publication and proactive PR-handoff workflow correction | Not yet reported | About 6 minutes of observed wall time through final verification | Includes GitHub permission/network waits and resumed work; not a CPU-time measure. |
 | 2026-10-17, approximately 12:08–12:11 | Verify manual WP-0 merge, synchronize checkout, prepare WP-1 discussion and start Docker Desktop | Not yet reported | About 3 minutes of observed wall time | Merge confirmed at 12:08:30; Engine readiness verified; no application implementation started. |
 | 2026-10-17, approximately 12:13–12:46 | WP-1a implementation, parallel reviews, container setup, PostgreSQL/Swarm checks and browser QA | Not yet reported | About 33 minutes of observed wall time through 10:46:25 UTC | Includes parallel agents, approval/download waits and fixes; not human effort or summed agent CPU time. Handoff continues separately. |
+| 2026-10-17, approximately 12:46–12:51 | Final checks/evidence, coherent commits, push and draft PR #2 | Not yet reported | About 5 minutes of observed wall time | Local 61-test suite/static checks pass; remote CI and candidate review remain separate gates. |
 
 Totals remain unknown until candidate estimates and observed intervals are recorded.
 Before submission, disclose approximations and any work beyond the intended timebox.

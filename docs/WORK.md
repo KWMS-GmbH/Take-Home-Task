@@ -30,8 +30,9 @@ open points and evidence; candidate can find how a requirement will be verified.
 
 ## WP-1a — Deployable authorization vertical slice
 
-Status: local acceptance verified; preparing proactive PR handoff. Candidate review
-and manual merge remain required. [Persisted plan](plans/WP-1a.md).
+Status: local acceptance verified; published for gated review in
+[PR #2](https://github.com/krebsni/Take-Home-Task/pull/2). GitHub Checks are authoritative
+for remote CI. Candidate review and manual merge remain required. [Persisted plan](plans/WP-1a.md).
 Branch: `codex/authorization-slice`.
 
 - [x] Approve split, empty fresh database, one process/two listeners, replica safety now.
@@ -43,7 +44,7 @@ Branch: `codex/authorization-slice`.
 - [x] Independent cross-component code/architecture reviews and findings addressed;
   final integration/browser fixes self-reviewed after review-agent account limit.
 - [x] Document evidence, limitations and review focus; no complete-submission claim.
-- [ ] Publish PR and verify remote CI; hand over for candidate review/walkthrough.
+- [x] Publish PR #2 with local verification and review focus; remote CI is visible in Checks.
 - [ ] Candidate manually reviews and merges; only then start WP-1b.
 
 Acceptance: station-specific current authorization agrees across UI/API/OCPP/DB and
@@ -155,6 +156,8 @@ commit, findings addressed, and remaining limitations at each gate.
   `make test` passes 61 tests against isolated PostgreSQL, including three migration
   processes, empty initial data, permission changes, atomic rollback/audit/replay,
   explicit three-listener fencing, malformed/oversize/binary frames and pool exhaustion.
+  Application commit: `fc38541`; deployment/evidence commit: `a85a479`. Final CI state
+  belongs to the PR's Checks rather than a self-asserted documentation checkbox.
 - WP-1a: `./deploy.sh` brought a fresh single-node Swarm to 3/3 + 1/1 + 1/1 healthy.
   Repeated deployment retained CHECK-CP/CHECK-TAG and CP-REVIEW/TAG-REVIEW. Inspection
   confirms only 8080/9000 published, DB image digest pinned, Docker secrets mounted,
