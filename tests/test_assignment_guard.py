@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
-
+from pathlib import Path
 
 BASELINE_COMMIT = "1b8ccff372d81691f50480a4d8d4e1f17a839095"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]

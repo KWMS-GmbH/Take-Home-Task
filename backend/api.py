@@ -1,0 +1,147 @@
+"""Internal HTTP management and health API."""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+from typing import Annotated, Any
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+from .service import (
+    AlreadyExists,
+    DependencyUnavailable,
+    NotFound,
+    RequestConflict,
+    Service,
+    ServiceError,
+    StaleConnection,
+    ValidationError,
+)
+
+StationId = Annotated[
+    str,
+    StringConstraints(
+        strict=True,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    ),
+]
+IdTagValue = Annotated[
+    str,
+    StringConstraints(
+        strict=True,
+        min_length=1,
+        max_length=20,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    ),
+]
+
+
+class StrictModel(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+
+class StationCreate(StrictModel):
+    id: StationId
+
+
+class StationResult(StrictModel):
+    id: StationId
+    vendor: str | None
+    model: str | None
+    activeGeneration: int = Field(ge=0)
+
+
+class IdTagCreate(StrictModel):
+    id: IdTagValue
+
+
+class IdTagResult(StrictModel):
+    id: IdTagValue
+
+
+class PermissionUpdate(StrictModel):
+    enabled: bool
+
+
+class PermissionResult(StrictModel):
+    stationId: StationId
+    idTag: IdTagValue
+    enabled: bool
+
+
+def _error_status(exc: ServiceError) -> int:
+    if isinstance(exc, DependencyUnavailable):
+        return 503
+    if isinstance(exc, NotFound):
+        return 404
+    if isinstance(exc, (AlreadyExists, RequestConflict, StaleConnection)):
+        return 409
+    if isinstance(exc, ValidationError):
+        return 422
+    return 500
+
+
+def create_app(
+    service: Service,
+    *,
+    readiness_check: Callable[[], Awaitable[None]],
+    instance_id: str,
+) -> FastAPI:
+    app = FastAPI(title="Charging Session Management API", version="0.1.0")
+
+    @app.exception_handler(ServiceError)
+    async def service_error_handler(_request: Request, exc: ServiceError) -> JSONResponse:
+        return JSONResponse(
+            status_code=_error_status(exc),
+            content={"detail": str(exc) or exc.__class__.__name__},
+        )
+
+    @app.get("/health/live")
+    async def live() -> dict[str, str]:
+        return {"status": "ok", "instanceId": instance_id}
+
+    @app.get("/health/ready", response_model=None)
+    async def ready() -> JSONResponse | dict[str, str]:
+        try:
+            await readiness_check()
+        except Exception:  # Readiness must not leak driver/credential details.
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "instanceId": instance_id},
+            )
+        return {"status": "ok", "instanceId": instance_id}
+
+    @app.get("/api/stations", response_model=list[StationResult])
+    async def list_stations() -> list[dict[str, Any]]:
+        return await service.list_stations()
+
+    @app.post("/api/stations", status_code=201, response_model=StationResult)
+    async def create_station(body: StationCreate) -> dict[str, Any]:
+        return await service.create_station(body.id)
+
+    @app.get("/api/id-tags", response_model=list[IdTagResult])
+    async def list_id_tags() -> list[dict[str, str]]:
+        return await service.list_id_tags()
+
+    @app.post("/api/id-tags", status_code=201, response_model=IdTagResult)
+    async def create_id_tag(body: IdTagCreate) -> dict[str, str]:
+        return await service.create_id_tag(body.id)
+
+    @app.get("/api/permissions", response_model=list[PermissionResult])
+    async def list_permissions() -> list[dict[str, Any]]:
+        return await service.list_permissions()
+
+    @app.put(
+        "/api/stations/{station_id}/permissions/{id_tag}",
+        response_model=PermissionResult,
+    )
+    async def update_permission(
+        station_id: StationId, id_tag: IdTagValue, body: PermissionUpdate
+    ) -> dict[str, Any]:
+        return await service.set_permission(station_id, id_tag, enabled=body.enabled)
+
+    return app

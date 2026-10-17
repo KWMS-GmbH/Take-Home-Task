@@ -31,6 +31,11 @@
 - Use `codex/` branches and coherent, reasonably sized commits with relevant tests.
 - Use vertical-slice PRs that can be reviewed independently. The candidate reviews
   and merges every PR manually. Never merge or enable auto-merge on their behalf.
+- Treat each PR description as a layered review/presentation guide, not a changelog.
+  Start with the outcome and current project state; explain important business and
+  technical flows, decisions/trade-offs, risks, open/deferred work, actual evidence
+  and a suggested review route. Use `.github/pull_request_template.md` and the PR
+  description contract in `docs/WORKFLOW.md`; keep it current as the PR changes.
 - The candidate authorized publishing project work to the public
   `krebsni/Take-Home-Task` fork on 2026-10-17. For every agreed package, proactively
   finish checks/reviews, commit, push, open the PR in that fork, and hand over its

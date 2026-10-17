@@ -1,0 +1,42 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Static and configuration checks
+        run: make check
+      - name: PostgreSQL integration tests
+        run: make test
+      - name: Initialize single-node Swarm
+        run: docker swarm init
+      - name: Deploy and verify actual three-replica stack
+        run: ./deploy.sh && make smoke
+      - name: Deployment diagnostics
+        if: failure()
+        run: |
+          docker stack ps --no-trunc kwms || true
+          docker service logs --tail 100 kwms_backend || true
+          docker service logs --tail 50 kwms_frontend || true
+      - name: Remove CI stack
+        if: always()
+        run: make teardown

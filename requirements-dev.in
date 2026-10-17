@@ -1,0 +1,8 @@
+# Development dependencies are compiled against the runtime lock.
+-c requirements.txt
+
+mypy
+pip-audit
+pytest
+pytest-asyncio
+ruff

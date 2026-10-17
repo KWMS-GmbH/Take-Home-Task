@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:17-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826
+    environment:
+      POSTGRES_DB: charging_test
+      POSTGRES_USER: charging_test
+      POSTGRES_PASSWORD_FILE: /run/secrets/test_db_password
+    secrets:
+      - test_db_password
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    networks:
+      - test
+
+  tooling:
+    image: kwms-tooling:test
+    build:
+      context: .
+      target: tooling
+    environment:
+      TEST_DATABASE_URL: postgresql+psycopg://charging_test:test-only-password@db:5432/charging_test
+      TEST_DB_PASSWORD_FILE: /run/secrets/test_db_password
+    secrets:
+      - test_db_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - test
+    init: true
+    command: ["python", "-m", "pytest", "-q"]
+
+networks:
+  test:
+    internal: true
+
+secrets:
+  test_db_password:
+    file: "${TEST_DB_PASSWORD_FILE:?set TEST_DB_PASSWORD_FILE to the temporary test secret}"
