@@ -7,8 +7,9 @@ split when a diff is too large for useful candidate review.
 
 ## WP-0 — Project foundation
 
-Status: checks/reviews complete; PR #1 open for candidate handoff.
-Candidate approved the local foundation and authorized publication. Manual merge pending.
+Status: done. Candidate manually merged PR #1 on 2026-10-17 at 12:08:30 Europe/Berlin.
+Merge commit: `90dced97cf7d92fb991122146af0fdb572134429`; local `main` is synchronized
+with the fork's `origin/main`. Final KWMS submission access remains a separate issue.
 Branch: `codex/project-foundation`.
 PR: [#1 — Establish project foundation and protect the assignment](https://github.com/krebsni/Take-Home-Task/pull/1).
 
@@ -22,14 +23,17 @@ PR: [#1 — Establish project foundation and protect the assignment](https://git
 - [x] Candidate authorizes public-fork publication (2026-10-17).
 - [x] Push the foundation branch and open PR #1 in the authorized fork.
 - [x] Complete final workflow-update verification and prepare the PR review handoff.
-- [ ] Candidate manually reviews/merges PR #1; confirm merge before marking WP-0 done.
+- [x] Candidate manually reviews/merges PR #1; merge confirmed through GitHub and local synchronization.
 
 Acceptance: original files unchanged; drafts distinguish requirements, approved choices,
 open points and evidence; candidate can find how a requirement will be verified.
 
 ## WP-1 — Deployable authorization and charging vertical slice
 
-Status: proposed; discuss/resolve Q-02 before implementation. No dependency pins yet.
+Status: discussion/preparation; discuss/resolve Q-02 before implementation.
+No dependency pins or application code yet. Proposed review granularity: WP-1a
+for deployable station/tag/permission management plus Boot/Authorize, then WP-1b
+for charging/session happy path. Candidate agreement on that split is pending.
 
 - [ ] Create the persisted package plan after targeted design discussion.
 - [ ] Prove OCPP library + raw-input adapter or justify the narrow fallback.
@@ -98,7 +102,7 @@ conflict and record the candidate's decision, with remaining requirements incomp
 | Risk | Current treatment / next action |
 | --- | --- |
 | Submission access | KWMS repository last reported READ; no pending invitation found. Candidate contacts KWMS about final submission. Public-fork project PRs are separately authorized and may proceed. |
-| Tooling readiness | Docker CLI installed but daemon was unavailable at first inspection. Start/check Docker during WP-1; do not claim deployment verification yet. |
+| Tooling readiness | Docker Desktop started and Engine 28.3.3 verified on 2026-10-17 (8 CPUs, about 7.65 GiB memory). Swarm is inactive; initialization/deployment verification remains WP-1 work. |
 | Scope/time | User added actual three-replica correctness, audit and browser QA. Keep packages reviewable and record honest omissions/time; six-hour intent still applies. |
 | ID reuse ambiguity | No eternal station/uniqueId key. Start retry identity/retention remains Q-01; repeated Stop is independently safe by transaction ID. |
 | Input compatibility | Library schemas reject arbitrary extras; raw-name collisions require adapter proof before choosing dependencies. |
@@ -119,7 +123,7 @@ commit, findings addressed, and remaining limitations at each gate.
 - WP-0: independent source/spec and workflow/code reviews completed. Fixed missing
   explicit S01 coverage, scenario acceptance details, ambiguous replay-response wording,
   and the staged-drift guard bypass. No remaining review blocker; candidate approved
-  the local foundation with `lgtm` on 2026-10-17. PR review/manual merge remains pending.
+  the local foundation with `lgtm` on 2026-10-17 and subsequently manually merged PR #1.
 - WP-0 handoff correction: the candidate required proactive commit/push/PR ownership
   after the first package was left local. Publication authority is now explicit;
   package readiness and completion/merge conditions are defined in the workflow.
@@ -127,3 +131,10 @@ commit, findings addressed, and remaining limitations at each gate.
   shell syntax and whitespace checks pass after the workflow correction. Original
   independent reviews cover the foundation/guard; the handoff-only amendments are
   self-reviewed and remain included in the candidate's PR review.
+- WP-0 completion: GitHub reports PR #1 `MERGED` at `2026-10-17T10:08:30Z`, merge
+  `90dced97cf7d92fb991122146af0fdb572134429`. Its tree matches reviewed head `f911a49`;
+  the assignment guard passes on the synchronized tree. New work branch:
+  `codex/authorization-slice`.
+- WP-1 preparation: Docker Desktop startup completed and `docker info` confirms a
+  reachable Engine; no Swarm initialization, image build, dependency installation,
+  or application behavior is claimed from this environment check.

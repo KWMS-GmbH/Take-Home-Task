@@ -75,7 +75,7 @@ for reconciliation with the candidate first.
 | --- | --- | --- | --- |
 | U-SCALE | Correct operation with three backend replicas, including cross-replica races and process failure | Deterministic three-instance integration and actual Swarm smoke / WP-3 | — |
 | U-TRACE | Immutable original files and continuous requirement-to-test traceability | Baseline guard; matrix review at every gate / WP-0 onward | scripts/verify-assignment.sh; 10 regression cases in tests/test_assignment_guard.py pass; matrix independently reviewed |
-| U-PR | Several reviewable vertical-slice PRs; Codex owns proactive verified commit/push/PR handoff, candidate manually reviews and merges each | PR descriptions, review gates and preserved commits / all packages | Foundation PR #1 open in authorized fork; manual merge pending |
+| U-PR | Several reviewable vertical-slice PRs; Codex owns proactive verified commit/push/PR handoff, candidate manually reviews and merges each | PR descriptions, review gates and preserved commits / all packages | Foundation PR #1 manually merged; merge 90dced97 verified; future package reviews pending |
 | U-SPEC | Discuss each package, maintain living spec, persist disposable plans, code/architecture review and growing meaningful tests | Package checklists and recorded evidence / all packages | Foundation approved with lgtm; owning-package open details remain explicit |
 | U-AUDIT | Durable business audit history plus correlated, bounded operational logging | Atomic-audit and duplicate/replay tests; log inspection / WP-2,WP-3 | — |
 | U-AUTOMATE | Container-based reproducible tooling, automated unit/integration/full-stack checks and live browser QA | Documented one-command checks and browser evidence / WP-1 onward | — |
