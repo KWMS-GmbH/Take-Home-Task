@@ -8,6 +8,11 @@ do not sum them as independent human hours or claim unsupported precision.
 
 All displayed times use Europe/Berlin (UTC+02:00 on these dates).
 
+After WP-3b the candidate reported approximately **2½ hours of cumulative active
+effort** so far, as a rough personal estimate, not independently measured. It covers
+discussion/review/manual work, excluding agent-only execution/waits. It is not a
+total-project-time claim and is not retroactively distributed across intervals.
+
 | Date / observed interval | Activity | Candidate active effort | Agent work | Notes |
 | --- | --- | --- | --- | --- |
 | 2026-10-17, before ledger initialization | Assignment/tooling reconnaissance, brainstorming, fork and architecture discussion | Not yet reported | Duration not measured | Do not invent a retrospective duration; candidate may provide an estimate. |
@@ -38,6 +43,8 @@ All displayed times use Europe/Berlin (UTC+02:00 on these dates).
 | 2026-10-17, observed approximately 17:27–17:29 | WP-3b final evidence/description review, coherent commits and draft PR #5 publication | Not yet reported | About 2 minutes of observed wall time through publication checkpoint | Includes parallel review and network waits. Remote CI/readiness and candidate manual review/merge are separate gates; no WP-4 implementation. |
 | 2026-10-17, observed approximately 17:29–17:35 | WP-3b exact-head CI wait, failure diagnosis and approved-fix proposal | Not yet reported | About 6 minutes of observed wall time | Static/316 pytest cases pass remotely, then recovery harness times out before fault injection. PR kept draft; CI-fix skill paused implementation for candidate approval. Includes waits and read-only parallel diagnosis, not human effort. |
 | 2026-10-17, observed approximately 17:37–17:43 | Approved recovery-harness repair, regressions, self-review and local gates | Not yet reported | About 6 minutes of observed wall time through verification checkpoint | 16 focused/324 full pytest cases, static gates, two actual owned recovery runs and normal three-task smoke pass. No new parallel agents or live outage/apply. Production code/secrets unchanged; final-head CI/handoff follows separately. |
+| 2026-10-17, observed approximately 22:11–22:26 | WP-R1 approved backend readability contract, baseline characterization, extraction, independent review and local gates | Cumulative estimate reported above; no new interval measured | About 15 minutes of observed wall time through local verification/evidence checkpoint | Includes parallel review, builds and waits, not summed CPU/human effort. Three new tests pass before extraction; final 67 focused/327 full, static/source, actual owned-volume recovery and normal three-task redeploy/smoke pass. No behavior change, live outage or cleanup apply. Publication/CI/manual review follow separately. |
+| 2026-10-17, observed approximately 22:26–22:27 | WP-R1 final documentation review and draft PR #6 publication | No new interval measured | About 1 minute of observed wall time through publication checkpoint | Includes network/review waits. Layered PR published in KWMS; current-head CI controls readiness. Candidate manual review/merge remains; no frontend or full documentation rewrite started. |
 
 Totals remain unknown until candidate estimates and observed intervals are recorded.
 Before submission, disclose approximations and any work beyond the intended timebox.
