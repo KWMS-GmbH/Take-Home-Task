@@ -7,8 +7,10 @@ split when a diff is too large for useful candidate review.
 
 ## WP-0 — Project foundation
 
-Status: ready for candidate review; initial discussion, documentation and guard review complete.
+Status: checks/reviews complete; PR #1 open for candidate handoff.
+Candidate approved the local foundation and authorized publication. Manual merge pending.
 Branch: `codex/project-foundation`.
+PR: [#1 — Establish project foundation and protect the assignment](https://github.com/krebsni/Take-Home-Task/pull/1).
 
 - [x] Inspect original assignment, scenarios, repository and available tooling.
 - [x] Discuss workflow, roles, traceability, architecture and failure model.
@@ -16,8 +18,11 @@ Branch: `codex/project-foundation`.
 - [x] Draft living spec, requirement matrix, workflow, work board and effort ledger.
 - [x] Verify immutable-source guard with positive and negative cases.
 - [x] Independent review of documentation against original requirements/conversation.
-- [ ] Candidate reviews initial spec and work-package boundaries.
-- [ ] Confirm publication route; publish/merge foundation PR only after that gate.
+- [x] Candidate reviews initial spec and work-package boundaries (`lgtm`, 2026-10-17).
+- [x] Candidate authorizes public-fork publication (2026-10-17).
+- [x] Push the foundation branch and open PR #1 in the authorized fork.
+- [x] Complete final workflow-update verification and prepare the PR review handoff.
+- [ ] Candidate manually reviews/merges PR #1; confirm merge before marking WP-0 done.
 
 Acceptance: original files unchanged; drafts distinguish requirements, approved choices,
 open points and evidence; candidate can find how a requirement will be verified.
@@ -92,7 +97,7 @@ conflict and record the candidate's decision, with remaining requirements incomp
 
 | Risk | Current treatment / next action |
 | --- | --- |
-| Submission access | KWMS repository last reported READ; no pending invitation found. Candidate contacts KWMS. Public fork exists; publication held pending confirmation. |
+| Submission access | KWMS repository last reported READ; no pending invitation found. Candidate contacts KWMS about final submission. Public-fork project PRs are separately authorized and may proceed. |
 | Tooling readiness | Docker CLI installed but daemon was unavailable at first inspection. Start/check Docker during WP-1; do not claim deployment verification yet. |
 | Scope/time | User added actual three-replica correctness, audit and browser QA. Keep packages reviewable and record honest omissions/time; six-hour intent still applies. |
 | ID reuse ambiguity | No eternal station/uniqueId key. Start retry identity/retention remains Q-01; repeated Stop is independently safe by transaction ID. |
@@ -113,4 +118,12 @@ commit, findings addressed, and remaining limitations at each gate.
   edits hidden by an unchanged working copy, deletions, committed drift and ignored additions.
 - WP-0: independent source/spec and workflow/code reviews completed. Fixed missing
   explicit S01 coverage, scenario acceptance details, ambiguous replay-response wording,
-  and the staged-drift guard bypass. No remaining review blocker; candidate review pending.
+  and the staged-drift guard bypass. No remaining review blocker; candidate approved
+  the local foundation with `lgtm` on 2026-10-17. PR review/manual merge remains pending.
+- WP-0 handoff correction: the candidate required proactive commit/push/PR ownership
+  after the first package was left local. Publication authority is now explicit;
+  package readiness and completion/merge conditions are defined in the workflow.
+- WP-0 publication verification: assignment integrity, all 10 guard regression tests,
+  shell syntax and whitespace checks pass after the workflow correction. Original
+  independent reviews cover the foundation/guard; the handoff-only amendments are
+  self-reviewed and remain included in the candidate's PR review.

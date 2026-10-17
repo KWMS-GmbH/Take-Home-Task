@@ -31,9 +31,18 @@
 - Use `codex/` branches and coherent, reasonably sized commits with relevant tests.
 - Use vertical-slice PRs that can be reviewed independently. The candidate reviews
   and merges every PR manually. Never merge or enable auto-merge on their behalf.
-- The fork is public. Publication of solution work is on hold until the candidate
-  confirms the submission/publication route with KWMS. Keep work local meanwhile;
-  do not push, create a public PR, or change repository visibility on assumption.
+- The candidate authorized publishing project work to the public
+  `krebsni/Take-Home-Task` fork on 2026-10-17. For every agreed package, proactively
+  finish checks/reviews, commit, push, open the PR in that fork, and hand over its
+  link, verification, review focus and remaining risks. Do not wait for the candidate
+  to ask for a PR or ask again for routine publication already authorized.
+- Use an explicit repository target for GitHub commands. Access/final submission
+  to KWMS remains a separate open issue; fork publication does not resolve it.
+- A package is review-ready after its scoped exit checks pass and the PR is ready
+  for review; it is done only after the candidate's manual merge is confirmed.
+  Surface any handoff blocker promptly with the exact missing decision/action.
+- Wait for the candidate's merge before dependent implementation unless they
+  explicitly authorize continuation from an exact reviewed local commit.
 - Never send messages to KWMS or other people without an explicit instruction.
 - Preserve unrelated user work and the original Git history.
 

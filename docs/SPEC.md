@@ -1,6 +1,6 @@
 # Charging Session Service — living specification
 
-Status: initial review draft, 2026-10-17. No application behavior is implemented yet.
+Status: foundation approved by the candidate (`lgtm`), 2026-10-17. No application behavior is implemented yet.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
 [REQUIREMENTS.md](REQUIREMENTS.md), execution status in [WORK.md](WORK.md), and
@@ -100,12 +100,15 @@ values must be visibly distinct from zero or confirmed facts.
 | Q-03 | Decide response to a fresh Start on an already-active connector, out-of-order meter samples, invalid time ordering, and unknown transaction references. Define how conflicting stops for an already-completed session are reported/audited while preserving D-12's first established result. | WP-2 |
 | Q-04 | Fix ownership-promotion and stale-socket behavior, migration execution, pool budget, timeouts, and load limits; prove the three-replica behavior. | WP-3 |
 | Q-05 | Define audit-event fields/retention, diagnostic redaction and rotation, and reliable scenario result extraction, without logging unbounded attacker-controlled data. | WP-2, WP-3 |
-| Q-06 | Confirm accepted submission route with KWMS before publishing solution work to the public fork. | Candidate |
+| Q-06 | Resolve access/final submission to the KWMS repository. The candidate has separately authorized routine project PR publication to the public fork; that workflow is not blocked on KWMS access. | Candidate |
 
 ## Source findings and spec change history
 
 - 2026-10-17: Initial discussion accepted the decisions above and added actual
   three-replica support beyond the original scaling-explanation requirement.
+- 2026-10-17: Candidate approved the foundation spec and authorized fork publication.
+  Codex owns proactive verified commit/push/PR handoff; candidate manual merge remains
+  the gate. This changes workflow ownership, not application behavior.
 - Source review corrected an initial proposal for permanent `(station, uniqueId)`
   deduplication. OCPP-J 1.6 §4.1.4 only guarantees sender/connection uniqueness.
 - Supplied scenario 02 recomputes `$ts(-5m)` for each Stop. Its two payloads can
