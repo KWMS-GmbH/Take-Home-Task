@@ -290,13 +290,12 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   closes on its next valid supported request, not by a cross-process close broadcast.
   Audit/inbox retention, larger fleets and comprehensive failure/load proof remain later work.
 
-### Remaining mechanics
+### Implementation boundaries and remaining mechanics
 
-- Implement the approved Authorize-only UI probe and its explicit connection caveat
-  from D-23. Preserve original tooling and deliberate scenario Boot behavior. This
-  decision alone does not close the other WP-1b session semantics or approve its full plan.
-  D-27 subsequently approved the full WP-1b plan; implementation status/evidence is
-  separate from that original approval history.
+- D-23's Authorize-only UI probe and connection caveat are implemented and verified
+  by transport, actual three-replica smoke and live browser observation. Original
+  tooling and deliberate scenario Boots remain unchanged. D-27 approved the full
+  WP-1b plan; candidate PR review/merge remains separate from runtime evidence.
 - PostgreSQL connection generations/fencing, row locks and a partial unique index
   enforce ownership and connector invariants. Define takeover at a validated
   connection boundary without adding a mandatory Boot-first sequence to the brief.
@@ -315,13 +314,13 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 
 | ID | Decision needed | Owner |
 | --- | --- | --- |
-| Q-01 | Policy/defaults resolved by D-24/D-27 and connection-scoped replay: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. Implement/test now; retention/failure extensions remain WP-2/WP-3. | WP-1b, WP-2, WP-3 |
-| Q-02 | Prove library adapter behavior for arbitrary extra fields, raw-name collisions (`callUniqueId`/`call_unique_id`, `connectorId`/`connector_id`), malformed input, and output validation. Pin or reject the evaluated library based on evidence. | WP-1 |
-| Q-03 | Policy/defaults resolved by D-25–D-27/D-12: supersede occupied attempts, reject bad references, retain suspicious evidence, interrupt invalid-time Stops, preserve first admissible completion. Implement/test now; full scenario UI/proof remains WP-2. | WP-1b, WP-2 |
-| Q-04 | Implement D-21/D-22 and initial bounds in WP-1a; extend stale-socket/crash/load proof and tune limits in WP-3. | WP-1a, WP-3 |
-| Q-05 | Define audit-event fields/retention, diagnostic redaction and rotation, and reliable scenario result extraction, without logging unbounded attacker-controlled data. | WP-2, WP-3 |
+| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. Remaining scenario, retention/failure extensions stay WP-2/WP-3. | WP-2, WP-3 |
+| Q-02 | Library choice/public API/raw filter resolved and pinned in WP-1a; collision, malformed-input and output-validation tests pass. Extend exact extra-field wire coverage to all four charging actions; do not imply existing Boot/Authorize proof covers every action. | WP-2 |
+| Q-03 | D-25–D-27/D-12 are implemented/tested: supersede occupied attempts, reject bad references, retain suspicious evidence, interrupt invalid-time Stops, preserve first admissible completion. Full remaining scenario acceptance/UI stays WP-2. | WP-2 |
+| Q-04 | D-21/D-22, initial bounds and explicit/deployed cross-replica continuation are implemented/tested. Extend concurrent-writer/crash/load proof and tune limits in WP-3. | WP-3 |
+| Q-05 | Atomic session audit fields and bounded/redacted operational logging with rotation are implemented. Retention and reliable full-scenario result extraction remain; do not promise durable external diagnostic collection. | WP-2, WP-3 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
-| Q-07 | Design resolved by candidate approval of D-23: Authorize-only UI adapter, unchanged originals and documented ownership caveat. Implementation/verification remains WP-1b; this is not a runtime pass. | WP-1b |
+| Q-07 | D-23 implemented/verified: Authorize-only UI adapter, unchanged originals, documented ownership caveat, exact active-view preservation and stale-socket rejection. Full scenario browser experience remains WP-2; candidate WP-1b review/merge is still required. | Candidate, WP-2 |
 
 ## Source findings and spec change history
 
@@ -367,6 +366,9 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   context rounding/overflow, historical meter inversions, post-completion summary
   mutation and invalid frontend-ID error classification. Added focused regressions;
   resource/presentation bounds and first-completion behavior are documented above.
+- WP-1b publication review reconciled stale implementation/question status with
+  actual evidence and later-package scope. This documentation-only handoff amendment
+  changes no behavior or original requirement; candidate manual PR review is pending.
 - Future changes must state affected requirement IDs, old/new behavior, rationale,
   candidate agreement for material choices, and changed verification evidence.
 

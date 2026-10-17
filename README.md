@@ -155,8 +155,8 @@ including Blocked/Invalid outcomes. The previous socket remains fenced after the
 probe closes and must reconnect. This must not itself interrupt a charging session.
 Use different station IDs for independent simulations; this is not passive monitoring
 or authenticated station identity. Scenario 07's overlapping-connection, one completed
-3.0 kWh requirement is not exempted. Core takeover/correction has automated coverage;
-full supplied scenario experience/proof remains tracked in the matrix.
+3.0 kWh requirement is not exempted: unchanged scenario 07 has passing automated
+API/DB acceptance. The all-scenario browser experience remains tracked in the matrix.
 
 `START_RETRY_SECONDS=86400 ./deploy.sh` configures the post-transition Start grace
 (1–604800 seconds); active exact-match protection and Stop idempotency are separate.

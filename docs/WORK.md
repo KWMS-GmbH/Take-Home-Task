@@ -79,10 +79,12 @@ persistence wording. Assignment integrity/tree identity were rechecked for the i
 
 ## WP-1b — Charging/session happy-path vertical slice
 
-Status: in progress. Candidate approved D-23–D-27 and the detailed
+Status: published for candidate review/manual merge. Candidate approved D-23–D-27 and the detailed
 [implementation plan](plans/WP-1b.md), including refined retry/time defaults and
-the UI boundary. Local acceptance passes; publication/current-head remote CI and
-candidate manual review/merge remain the handoff gates.
+the UI boundary. [KWMS PR #2](https://github.com/KWMS-GmbH/Take-Home-Task/pull/2)
+contains the layered review guide. Local acceptance passes; current-head remote CI
+and draft/ready status are authoritative in that PR. It remains draft while checks
+are pending; candidate manual review/merge is still required before WP-2.
 Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`.
 
 - [x] Discuss and approve retry identity, occupied connectors, rejected references,
@@ -90,25 +92,28 @@ Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`
 - [x] Review/approve concrete spec/plan: retry window, invalid-time handling, UI boundary.
 - [x] Candidate approves Authorize-only UI probe (D-23); exact Boot rationale,
   remaining connection-takeover caveat and original-task compatibility are recorded
-  in SPEC.md. Other session decisions/full-plan approval and runtime tests remain open.
+  in SPEC.md. D-24–D-27 subsequently close the other policy/default/plan decisions;
+  runtime verification is recorded below.
 - [x] Status/Start/Meter/Stop handlers, session migrations and API/UI session views.
 - [x] One permitted complete 10.0 kWh session through unchanged scenario 01 and API.
 - [x] Denied-start outcome and session authorization snapshot, without false billing claims.
 - [x] Meaningful session regression tests and independent code/architecture reviews;
   findings repaired and regression-tested. Publication/final evidence follows below.
-- [ ] Publish verified WP-1b PR in KWMS with layered review/presentation guide.
+- [x] Publish locally verified WP-1b PR in KWMS with layered review/presentation guide;
+  confirm current-head checks/ready status before the candidate handoff.
 - [ ] Candidate manually reviews/merges WP-1b before dependent WP-2 work.
 
 ## WP-2 — Session correctness, audit and scenario experience
 
-Status: proposed; depends on candidate merge of WP-1b. Extend approved D-24–D-26
-and the reviewed Q-01/Q-03 mechanics with complete scenario proof and audit details.
+Status: proposed; depends on candidate merge of WP-1b. Extend its delivered session
+rules and atomic audit with complete supplied-scenario proof and the scenario UI.
 
-- [ ] Discuss state transitions, Start retry identity, meter ordering and conflicting data;
-  update spec and persist implementation plan.
-- [ ] Implement interrupted/late/rejected/suspicious sessions and domain idempotency.
-- [ ] Add atomic business audit records and correlated replay/mismatch diagnostics.
-- [ ] Run each supplied scenario unchanged; correlate actual transaction IDs through the API.
+- [ ] Review delivered state/retry/meter rules against the remaining scenarios;
+  discuss remaining gaps, update spec and persist implementation plan.
+- [ ] Extend session rules/tests only where remaining acceptance reveals a gap.
+- [ ] Expose reliable scenario correlation using the delivered audit/replay boundary.
+- [ ] Run remaining supplied scenarios unchanged; correlate actual transaction IDs
+  through the API (01/07 already have automated API/DB acceptance in WP-1b).
 - [ ] Show all required outcomes/checks/exchanges/session fields and station history in the UI.
 - [ ] Test authorization changes, all session edge cases, repeats and their API/DB postconditions.
 - [ ] Code/architecture review, live browser QA, evidence update and candidate manual PR review.
@@ -122,12 +127,14 @@ Status: proposed; depends on WP-2. Extend WP-1a's ownership/pool/migration found
 to charging races, crashes, load, retention and operational recovery.
 
 - [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
-- [ ] Extend verified ownership to connector uniqueness and charging lock order across replicas.
+- [ ] Stress the delivered connector-uniqueness and charging-lock invariants with
+  explicit concurrent writers across replicas.
 - [ ] Tune existing pool/transport/log bounds; add simulation limits and retention.
 - [ ] Extend serialized-migration/readiness/log checks with dependency-failure recovery proof.
 - [ ] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
   crash before/after commit, reconnect/replay and three-instance startup.
-- [ ] Complete scenario 07 and prove actual Swarm backend=3 behavior, not just process tests.
+- [ ] Extend WP-1b's unchanged scenario 07/actual backend=3 continuation proof with
+  injected failures; verify its complete browser scenario experience.
 - [ ] Code/architecture review, evidence update and candidate manual PR review.
 
 Acceptance: all original cases plus U-SCALE work with three replicas. If scope/time requires
@@ -157,8 +164,8 @@ conflict and record the candidate's decision, with remaining requirements incomp
 | Submission access | KWMS WRITE access and candidate manual integration merge are verified. KWMS is canonical; both historical fork merges remain ancestors and KWMS main CI passes. Final assignment completion/submission remains pending. |
 | Tooling readiness | Docker Desktop/Engine verified; deployment checks used Engine 29.8.2, 8 CPUs and 8,319,770,624 bytes memory. Single-node Swarm initialized; healthy 3/3 backend, 1/1 frontend, 1/1 db observed. Host dependencies beyond Docker/Git/shell/OpenSSL are unnecessary. |
 | Scope/time | User added actual three-replica correctness, audit and browser QA. Keep packages reviewable and record honest omissions/time; six-hour intent still applies. |
-| ID reuse ambiguity | D-24's Start fingerprint/window policy is approved; active exact-match protection plus a 24-hour post-transition grace is proposed for review. No eternal station/uniqueId key. Repeated Stop protection is independent of that Start window. |
-| Input compatibility | Library schemas reject arbitrary extras; raw-name collisions require adapter proof before choosing dependencies. |
+| ID reuse ambiguity | D-24/D-27 are approved and implemented: exact active matches stay protected; closed/interrupted matches have a 24-hour post-transition grace. No eternal station/uniqueId key. Repeated Stop protection is independent of that Start window. |
+| Input compatibility | The pinned OCPP public-schema/message API works with the narrow raw-name filter. Existing Boot/Authorize collision and meter-filter tests pass; exhaustive extra-field wire coverage of the four charging actions remains a gap. |
 | Fixture timing | Scenario 02 re-renders timestamps. Preserve original files and test data invariants rather than byte identity. |
 | Single-node limits | Three backend replicas do not remove the single database/host failure domain. Persistent volume is not a backup. Explain production recovery needs. |
 | Observation gaps | Local diagnostic logs can rotate/disappear; no authenticated operator actor or external durable log collector. Durable business audit is separate. |
@@ -270,3 +277,10 @@ commit, findings addressed, and remaining limitations at each gate.
   than observed meter evidence, completed-summary mutation, and invalid-ID 503 mapping.
   Regression tests cover these findings. Full scenario dashboard, other supplied
   scenario acceptance, crash/load/retention and production security remain later work.
+- WP-1b publication: four coherent process/domain/UI/evidence commits through
+  `1261dad` were pushed and [KWMS PR #2](https://github.com/KWMS-GmbH/Take-Home-Task/pull/2)
+  opened in draft while CI runs. A final independent documentation review removed
+  stale proposed/unimplemented claims and narrowed later packages to remaining work.
+  This handoff-record amendment changes no application behavior; assignment guard
+  and whitespace checks pass. The candidate alone reviews/merges; current-head Checks
+  determine readiness rather than a permanently green documentation checkbox.

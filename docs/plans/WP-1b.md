@@ -73,8 +73,9 @@ case/failure proof remain WP-2/WP-3.
 - Session references cannot mutate another station's records.
 - UI reads real session data through HTTP, never directly from PostgreSQL.
 - D-23 probe emits no Boot; active-session state survives Authorize-only takeover.
-  Keep unchanged scenario 07's single completed 3.0 kWh transaction across sockets
-  as mandatory later acceptance, not an exemption for the shared-ID caveat.
+  Unchanged scenario 07's single completed 3.0 kWh transaction across sockets is
+  mandatory acceptance, not an exemption for the shared-ID caveat. Its automated
+  API/DB acceptance was achieved in this slice; full browser experience stays WP-2.
 - Exact Start retries, including equivalent timestamp offsets and fresh connection
   IDs, return one original transaction/auth snapshot within the agreed window.
   Test a still-active session older than 24 hours so a retry cannot split it.
