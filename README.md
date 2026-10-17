@@ -4,7 +4,7 @@ Interview take-home for KWMS. The original assignment and supplied replay toolin
 remain unchanged in [take-home/](take-home/). Submission deadline: Sunday,
 2026-10-18, 21:00 Europe/Berlin; our safety target is 18:00.
 
-## Current milestone: WP-2 scenario experience
+## Current milestone: WP-3a reliability verification
 
 Manage station/tag permissions, check real OCPP authorization, run all eight supplied
 scenarios, and inspect their actual API session data through Flask. Protocol and
@@ -12,8 +12,11 @@ session-data outcomes are checked separately. Sessions keep lifecycle,
 authorization-at-start and meter quality separate; three backend replicas share
 PostgreSQL state and enforce connection ownership there.
 
-**Not yet a complete submission:** broader concurrent charging/crash/load/retention
-proof remains WP-3, and independent final acceptance remains WP-4. The
+WP-3a adds deterministic contested-write and actual process-death tests for these
+existing rules; it does not change production behavior or the browser experience.
+
+**Not yet a complete submission:** bounded load, database dependency recovery and
+safe replay maintenance remain WP-3b; independent final acceptance remains WP-4. The
 [work board](docs/WORK.md) and [requirement matrix](docs/REQUIREMENTS.md) distinguish
 implemented behavior, observed evidence and remaining work.
 
@@ -137,6 +140,28 @@ never targets the deployed database; destructive test fixtures require an explic
 database name ending `_test`. It races three migration processes and tests database
 postconditions, not merely protocol responses. Test resources are removed afterward.
 
+Focused checks use the same isolated lifecycle; omit arguments for the full suite:
+
+```sh
+./scripts/test.sh tests/test_charging_races.py tests/test_process_crashes.py
+```
+
+The race tests use three separate Service instances/pools and observe actual
+PostgreSQL lock contention before releasing controlled barriers. They cover both
+Start/promotion and permission orders, connector independence, unrelated-station
+progress, duplicate/conflicting Stops and stale mutation/replay rejection. Test-only
+lock/statement timeouts are longer to permit observation; runtime defaults stay unchanged.
+
+Crash tests kill one owned subprocess running the real OCPP listener, with two
+independent surviving service/listener instances in the parent test process. For
+both Start and Stop, they pause after SQL domain/audit/inbox writes are flushed but
+before commit, and separately after commit but before the protocol sends its reply.
+Independent API/PG readers verify rollback versus durability; the client sees no
+successful reply, reconnects through survivors and converges to one completion.
+Generated-ID gaps after rollback are valid. All hooks are test-local, waits/cleanup
+are bounded, and unsafe database URLs are rejected before engine creation. These
+tests do not kill the live demo stack, PostgreSQL or three separate Swarm tasks.
+
 `make smoke` addresses all three actual backend tasks explicitly, checks UI forms and
 CSRF, shared permission updates, stale fencing, the UI's real Authorize-only probe,
 an active session surviving that takeover, and completion via another actual replica.
@@ -183,10 +208,16 @@ per-replica pool bounds are 5 connections, zero overflow, 2s acquisition, 3s con
 retries transient database failures; health/restart policies do not rely on Swarm
 `depends_on` ordering.
 
+The default three pools allow up to 15 steady application connections. The declared
+one-at-a-time start-first rollout can temporarily run a fourth task (up to 20),
+plus migration/admin connections. This is a configuration budget, not measured fleet
+capacity; dependency recovery/load measurements remain WP-3b.
+
 Running `docker service scale kwms_backend=3` is already the default. Shared
-permissions, database fencing and serialized migrations are built in now. Full
-charging races, crash/retry proofs and load tuning remain WP-3, so this is not
-yet a claim that the complete application is three-replica verified. The single-node
+permissions, database fencing and serialized migrations are built in. WP-3a adds
+controlled charging races and real process-death/retry proof, complementing the
+actual three-task smoke. This is finite correctness evidence, not exhaustive crash
+coverage, production capacity or HA. The single-node
 host and single PostgreSQL instance remain failure domains; a volume is not a backup.
 Multi-node deployment additionally needs shared image distribution, database/storage
 placement and recovery planning; locally built images target the requested one node.

@@ -42,3 +42,14 @@ partial execution marked completed and lost authorization frames during timeout.
 The unchanged CLI retains its original clock/coordination behavior; this adaptation
 is documented rather than presented as the unmodified entrypoint. Codex ran isolated
 PostgreSQL/audit tests, actual three-replica UI smoke and live positive/denied browser QA.
+
+For WP-3a, Codex added deterministic charging/permission/Stop races and a test-only
+process-crash harness, without changing runtime application code. Independent review
+caught a test-design trap: pausing during response validation would precede insertion
+of the replay record, so it would not prove rollback of all three atomic effects.
+The implemented pre-commit hook flushes and reads back domain/audit/inbox SQL state;
+the post-commit hook pauses before protocol send. Only an owned child against an
+explicit test database is killed. Three independent pools/services are not presented
+as three separately killed OS processes; the actual deployed three-replica smoke is
+separate evidence. Candidate review/manual merge and later WP-3b/final acceptance
+remain pending.

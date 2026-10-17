@@ -462,7 +462,7 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 | Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes now pass through the WP-2 adapter; retention/failure extensions remain. | WP-3 |
 | Q-02 | Resolved: pinned public API/raw filter, malformed-input/output validation and exact extra-field wire/collision coverage for Boot/Authorize plus all four charging actions pass. Broader fuzzing is not claimed. | Closed in WP-2 |
 | Q-03 | Resolved: D-25–D-27/D-12 rules and all eight adapter/API/DB outcomes/browser results verified; candidate manually merged WP-2. Later crash/concurrency proof remains Q-04. | Closed in WP-2 |
-| Q-04 | D-21/D-22, initial bounds and explicit/deployed cross-replica continuation are implemented/tested. Extend concurrent-writer/crash/load proof and tune limits in WP-3. | WP-3 |
+| Q-04 | D-21/D-22 and explicit/deployed continuation remain verified. WP-3a focused tests now prove controlled charging/permission/Stop races with three independent pools plus actual child-process death before/after commit and survivor retries. Bounded load/dependency recovery and tuning remain WP-3b; candidate WP-3a review/merge is separate. | WP-3a review, WP-3b |
 | Q-05 | Atomic session audit, bounded/redacted operational logs and exact full-scenario ID/API extraction are implemented/tested. Retention remains; do not promise durable external diagnostic collection. | WP-3 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
 | Q-07 | Resolved: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser experience verified and manually merged. | Closed in WP-2 |
@@ -539,6 +539,12 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 - 2026-10-17: Candidate approved the WP-3 split, test-only fault isolation and
   conservative replay-retention boundary (D-31/D-32). WP-3a's contract makes the
   existing serialization/crash semantics explicit; WP-3b remains separately gated.
+- WP-3a focused acceptance preserves runtime/session policy. Independent design
+  review identified the response-validator hook as too early for inbox rollback
+  proof; test-local pre-commit instrumentation instead flushes/reads all target
+  domain/audit/inbox writes. Controlled PG blocker observations and real owned-child
+  death/reconnect checks pass. The two survivors share the parent OS process;
+  do not conflate this with killing three deployed Swarm tasks or HA/capacity proof.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),

@@ -168,11 +168,14 @@ concrete safeguards still to be specified. No new deployed service/autoscaling/H
 
 ### WP-3a — charging races and process-crash correctness
 
+Status: locally verified; publication/current-head CI and candidate review pending.
+Branch `codex/reliability-slice`; production application/schema/deployment unchanged.
+
 - [x] Candidate approves scope/boundaries; record concrete spec and implementation plan.
-- [ ] Deterministic three-instance Start/connector, permission, Stop and stale-writer races.
-- [ ] Actual test-child Start/Stop death before commit and after commit/before response.
-- [ ] Exact API/PG/inbox/audit/retry assertions, bounded cleanup and repeated focused runs.
-- [ ] Full regression/static/source gates, actual deployed smoke and independent reviews.
+- [x] Deterministic three-instance Start/connector, permission, Stop and stale-writer races.
+- [x] Actual test-child Start/Stop death before commit and after commit/before response.
+- [x] Exact API/PG/inbox/audit/retry assertions, bounded cleanup and repeated focused runs.
+- [x] Full regression/static/source gates, actual deployed smoke and independent reviews.
 - [ ] Proactive layered KWMS PR/current-head CI handoff; candidate manually merges.
 
 ### WP-3b — bounded operation, recovery and safe maintenance
@@ -383,3 +386,30 @@ commit, findings addressed, and remaining limitations at each gate.
   Local main fast-forwarded and assignment integrity passes. New preparation branch:
   `codex/reliability-slice`. This is merge/source evidence, not a fresh full runtime
   suite or approval of unresolved WP-3 mechanics.
+- WP-3a preparation: candidate approved D-31/D-32. Independent design review found
+  that a response-validator pause precedes inbox insertion, so it cannot prove
+  rollback of every atomic effect. Test-local pre-commit instrumentation instead
+  flushes and queries target domain/audit/inbox SQL state; post-commit instrumentation
+  pauses after service return, before protocol send. No production hook or behavior
+  change was needed. The optional pytest-argument test entrypoint preserves the same
+  isolated database/container lifecycle and full-suite default.
+- WP-3a local gates: focused charging races **12 passed**; process death/database
+  guards **10 passed**. After removing a new deprecated Result.tuples conversion,
+  two combined repeats each pass **22 tests**, warning-free (4.95s / 5.10s).
+  `make check` passes all static/config/source/10 guard checks; `make test` passes
+  **277 tests** against isolated PostgreSQL (21.26s). All disposable test resources
+  are cleaned automatically. These durations are observations, not performance goals.
+- WP-3a deployed gate: normal `make smoke` passes against three actual Swarm task
+  addresses, including shared authorization, fencing/continuation, all-eight UI/API
+  results and denied-run gating. No fault was injected into the live stack and no
+  local redeploy was needed because backend/frontend/schema/config/dependency trees
+  are unchanged from merged `e0b51fc`; source/whitespace guards pass. Existing WP-2
+  visual QA remains the UI evidence; no new browser behavior or visual pass claimed.
+- WP-3a code/architecture review: no remaining blocker. Controlled PG lock waits
+  prove real contention, not just unfinished tasks; instances retain legitimate
+  generations. Child barriers and independent API/PG reads distinguish rollback
+  from committed-but-unreplied work; live receive/socket closure and new-connection
+  retries prove one business completion without dead-inbox replay. Race tests use
+  three pools/services in one process; crash tests kill one actual child with two
+  survivors in the parent, not three killed/raced Swarm processes. Dependency/load/
+  retention and host/database HA are not claimed. Candidate manual review remains.

@@ -34,6 +34,8 @@ database outage/HA, autoscaling or extra deployed service in this PR.
    existing deployed `make smoke`. Independent code/architecture reviews inspect
    determinism, false-pass risks, pre/post-commit distinction and production diff.
    Record actual results and limitations; UI unchanged, so no new visual QA claim.
+   Let `scripts/test.sh` forward optional pytest arguments so focused runs use the
+   same isolated container/database lifecycle; no arguments still runs the full suite.
 6. Update SPEC/REQUIREMENTS/WORK, README reliability account, AI_USAGE and honest
    time evidence. Make coherent race/crash/evidence commits, push/open layered KWMS
    PR, wait for exact-head CI and hand over. Candidate manually merges before WP-3b.
@@ -53,3 +55,14 @@ database outage/HA, autoscaling or extra deployed service in this PR.
 
 Planned commits: approved contract/plan; deterministic races; process-crash proof;
 review/evidence and PR handoff. Existing container dependencies should suffice.
+
+## Execution checkpoint
+
+Implemented as test/tooling/documentation changes only; no runtime policy, schema,
+dependency or deployment changes. Focused groups pass 12 + 10 tests; combined repeat
+runs pass 22 tests twice without warnings. `make check`, full 277-test regression,
+assignment guard and normal actual-three-task `make smoke` pass. Independent design
+and integrated code/architecture reviews report no blocker. New deprecation warning
+removed; pre-commit instrumentation trap fixed before implementation. Actual UI
+behavior is unchanged; no fresh visual QA or live-stack fault injection claimed.
+Publication/current-head CI and candidate manual merge remain separate gates in WORK.md.
