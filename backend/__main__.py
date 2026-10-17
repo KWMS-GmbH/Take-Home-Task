@@ -37,7 +37,11 @@ async def main() -> None:
             LOGGER.critical("migration_startup_failed", extra={"error_type": type(exc).__name__})
             raise SystemExit(1) from None
     engine = get_engine(settings)
-    service = Service(get_session_factory(engine), instance_id=settings.instance_id)
+    service = Service(
+        get_session_factory(engine),
+        instance_id=settings.instance_id,
+        start_retry_seconds=settings.start_retry_seconds,
+    )
     transport = OcppServer(service, settings.instance_id)
     try:
         async with serve(

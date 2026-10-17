@@ -1,8 +1,9 @@
-"""SQLAlchemy persistence model for the authorization slice."""
+"""SQLAlchemy persistence model for the charging-station service."""
 
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -12,8 +13,12 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
+    Numeric,
     String,
+    Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -116,5 +121,116 @@ class OcppInbox(Base):
     payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     response: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ChargingSession(Base):
+    __tablename__ = "charging_sessions"
+    __table_args__ = (
+        CheckConstraint("connector_id > 0", name="ck_charging_sessions_connector_positive"),
+        CheckConstraint(
+            "authorization_status IN ('Accepted', 'Blocked', 'Invalid')",
+            name="ck_charging_sessions_authorization_status",
+        ),
+        CheckConstraint(
+            "lifecycle IN ('active', 'completed', 'interrupted')",
+            name="ck_charging_sessions_lifecycle",
+        ),
+        CheckConstraint(
+            "meter_quality IN ('valid', 'unknown', 'suspicious')",
+            name="ck_charging_sessions_meter_quality",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(review_reasons) = 'array'",
+            name="ck_charging_sessions_review_reasons_array",
+        ),
+        Index(
+            "ix_charging_sessions_station_fingerprint",
+            "station_id",
+            "start_fingerprint",
+        ),
+        Index(
+            "uq_charging_sessions_active_connector",
+            "station_id",
+            "connector_id",
+            unique=True,
+            postgresql_where=text("lifecycle = 'active'"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    station_id: Mapped[str] = mapped_column(
+        ForeignKey("stations.id", ondelete="CASCADE"), nullable=False
+    )
+    connector_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    id_tag: Mapped[str] = mapped_column(String(20), nullable=False)
+    authorization_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    lifecycle: Mapped[str] = mapped_column(String(16), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    meter_start_wh: Mapped[Decimal] = mapped_column(Numeric(30, 6), nullable=False)
+    stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    meter_stop_wh: Mapped[Decimal | None] = mapped_column(Numeric(30, 6))
+    stop_reason: Mapped[str | None] = mapped_column(String(64))
+    last_meter_wh: Mapped[Decimal | None] = mapped_column(Numeric(30, 6))
+    last_meter_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    meter_quality: Mapped[str] = mapped_column(String(16), nullable=False)
+    review_reasons: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    start_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    retry_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class MeterEvidence(Base):
+    __tablename__ = "meter_evidence"
+    __table_args__ = (
+        Index("ix_meter_evidence_transaction_time", "transaction_id", "observed_at"),
+        UniqueConstraint(
+            "transaction_id",
+            "sample_key",
+            name="uq_meter_evidence_transaction_sample",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("charging_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    value_text: Mapped[str] = mapped_column(Text, nullable=False)
+    value_wh: Mapped[Decimal | None] = mapped_column(Numeric(30, 6))
+    sample_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    usable: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ConnectorStatus(Base):
+    __tablename__ = "connector_status"
+    __table_args__ = (
+        CheckConstraint("connector_id >= 0", name="ck_connector_status_connector_nonnegative"),
+    )
+
+    station_id: Mapped[str] = mapped_column(
+        ForeignKey("stations.id", ondelete="CASCADE"), primary_key=True
+    )
+    connector_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    error_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

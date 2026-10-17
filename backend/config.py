@@ -65,6 +65,7 @@ class Settings:
     statement_timeout_ms: int = 3_000
     lock_timeout_ms: int = 1_000
     instance_id: str = "backend"
+    start_retry_seconds: int = 86_400
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "database_url", _psycopg_url(self.database_url))
@@ -80,6 +81,11 @@ class Settings:
             raise ConfigurationError("database timeouts must be positive")
         if not self.instance_id or len(self.instance_id) > 128:
             raise ConfigurationError("instance_id must contain 1 to 128 characters")
+        if (
+            type(self.start_retry_seconds) is not int
+            or not 1 <= self.start_retry_seconds <= 604_800
+        ):
+            raise ConfigurationError("start_retry_seconds must be between 1 and 604800")
 
     @classmethod
     def from_env(cls, *, testing: bool = False) -> Settings:
@@ -119,4 +125,5 @@ class Settings:
             statement_timeout_ms=_integer("DB_STATEMENT_TIMEOUT_MS", 3_000, minimum=1),
             lock_timeout_ms=_integer("DB_LOCK_TIMEOUT_MS", 1_000, minimum=1),
             instance_id=os.getenv("INSTANCE_ID", socket.gethostname()),
+            start_retry_seconds=_integer("START_RETRY_SECONDS", 86_400, minimum=1),
         )

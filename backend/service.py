@@ -16,41 +16,32 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from .models import AuditEvent, IdTag, OcppInbox, Permission, Station
+from . import charging
+from .domain import session_view
+from .errors import AlreadyExists as AlreadyExists
+from .errors import DependencyUnavailable as DependencyUnavailable
+from .errors import InvalidTransaction as InvalidTransaction
+from .errors import NotFound as NotFound
+from .errors import RequestConflict as RequestConflict
+from .errors import ServiceError as ServiceError
+from .errors import StaleConnection as StaleConnection
+from .errors import ValidationError as ValidationError
+from .models import AuditEvent, ChargingSession, IdTag, OcppInbox, Permission, Station
 
 ResponseValidator = Callable[[dict[str, Any]], Awaitable[None]]
 
 _STATION_RE: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 _TAG_RE: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
-_SUPPORTED_ACTIONS: Final[frozenset[str]] = frozenset({"BootNotification", "Authorize"})
-
-
-class ServiceError(Exception):
-    """Base class for expected application-service failures."""
-
-
-class ValidationError(ServiceError):
-    pass
-
-
-class NotFound(ServiceError):
-    pass
-
-
-class AlreadyExists(ServiceError):
-    pass
-
-
-class StaleConnection(ServiceError):
-    pass
-
-
-class RequestConflict(ServiceError):
-    pass
-
-
-class DependencyUnavailable(ServiceError):
-    pass
+_SUPPORTED_ACTIONS: Final[frozenset[str]] = frozenset(
+    {
+        "BootNotification",
+        "Authorize",
+        "StatusNotification",
+        "StartTransaction",
+        "MeterValues",
+        "StopTransaction",
+    }
+)
 
 
 def validate_station_id(value: str) -> str:
@@ -86,6 +77,8 @@ def _normalize_payload(action: str, payload: Mapping[str, Any]) -> dict[str, Any
             "chargePointVendor": _required_string(payload, "chargePointVendor", maximum=255),
             "chargePointModel": _required_string(payload, "chargePointModel", maximum=255),
         }
+    if action != "Authorize":
+        return charging.normalize(action, payload)
     id_tag = payload.get("idTag")
     # OCPP CiString20 is broader than the deliberately URL-safe operator API ID.
     # Schema-valid unknown values must reach authorization and return Invalid.
@@ -162,7 +155,11 @@ class Service:
         session_factory: async_sessionmaker[AsyncSession],
         *,
         instance_id: str,
+        start_retry_seconds: int = 86_400,
     ) -> None:
+        if type(start_retry_seconds) is not int or not 1 <= start_retry_seconds <= 604_800:
+            raise ValidationError("start_retry_seconds must be between 1 and 604800")
+        self._start_retry_seconds = start_retry_seconds
         if not instance_id or len(instance_id) > 128:
             raise ValidationError("instance_id must contain 1 to 128 characters")
         self._session_factory = session_factory
@@ -363,27 +360,45 @@ class Service:
                                     )
                                 )
                         else:
-                            result = await self._apply_ocpp_action(
-                                session,
-                                station,
-                                connection_uuid=connection_uuid,
-                                instance_id=instance_id,
-                                action=action,
-                                payload=normalized,
-                                message_id=unique_id,
-                            )
-                            await response_validator(deepcopy(result))
-                            session.add(
-                                OcppInbox(
-                                    connection_id=connection_uuid,
-                                    unique_id=unique_id,
-                                    station_id=station_id,
-                                    generation=generation,
+                            try:
+                                result = await self._apply_ocpp_action(
+                                    session,
+                                    station,
+                                    connection_uuid=connection_uuid,
+                                    instance_id=instance_id,
                                     action=action,
-                                    payload_hash=digest,
-                                    response=deepcopy(result),
+                                    payload=normalized,
+                                    message_id=unique_id,
                                 )
-                            )
+                            except InvalidTransaction as exc:
+                                # Commit bounded rejection audit, but no session mutation.
+                                session.add(
+                                    _audit(
+                                        actor="charge_point",
+                                        source="ocpp",
+                                        kind="transaction_reference_rejected",
+                                        instance_id=instance_id,
+                                        station_id=station_id,
+                                        connection_id=connection_uuid,
+                                        message_id=unique_id,
+                                        action=action,
+                                        after={"transactionId": normalized.get("transactionId")},
+                                    )
+                                )
+                                pending_error = exc
+                            else:
+                                await response_validator(deepcopy(result))
+                                session.add(
+                                    OcppInbox(
+                                        connection_id=connection_uuid,
+                                        unique_id=unique_id,
+                                        station_id=station_id,
+                                        generation=generation,
+                                        action=action,
+                                        payload_hash=digest,
+                                        response=deepcopy(result),
+                                    )
+                                )
         except (NotFound, ValidationError):
             raise
         except SQLAlchemyError as exc:
@@ -406,7 +421,9 @@ class Service:
         payload: Mapping[str, Any],
         message_id: str,
     ) -> dict[str, Any]:
+        context = charging.Context(station.id, connection_uuid, instance_id, message_id, action)
         if action == "BootNotification":
+            await charging.interrupt_open(session, station, context, self._start_retry_seconds)
             before = {"vendor": station.vendor, "model": station.model}
             station.vendor = str(payload["chargePointVendor"])
             station.model = str(payload["chargePointModel"])
@@ -431,22 +448,18 @@ class Service:
                 "interval": 300,
             }
 
+        if action != "Authorize":
+            return await charging.apply(
+                session,
+                station,
+                context,
+                payload,
+                self._authorization_status,
+                self._start_retry_seconds,
+            )
+
         id_tag = str(payload["idTag"])
-        tag_exists = (
-            await session.execute(select(IdTag.id).where(IdTag.id == id_tag))
-        ).scalar_one_or_none()
-        if tag_exists is None:
-            status = "Invalid"
-        else:
-            enabled = (
-                await session.execute(
-                    select(Permission.enabled).where(
-                        Permission.station_id == station.id,
-                        Permission.id_tag == id_tag,
-                    )
-                )
-            ).scalar_one_or_none()
-            status = "Accepted" if enabled is True else "Blocked"
+        status = await self._authorization_status(session, station.id, id_tag)
         session.add(
             _audit(
                 actor="charge_point",
@@ -461,6 +474,60 @@ class Service:
             )
         )
         return {"idTagInfo": {"status": status}}
+
+    async def _authorization_status(
+        self, session: AsyncSession, station_id: str, id_tag: str
+    ) -> str:
+        tag_exists = (
+            await session.execute(select(IdTag.id).where(IdTag.id == id_tag))
+        ).scalar_one_or_none()
+        if tag_exists is None:
+            status = "Invalid"
+        else:
+            enabled = (
+                await session.execute(
+                    select(Permission.enabled).where(
+                        Permission.station_id == station_id,
+                        Permission.id_tag == id_tag,
+                    )
+                )
+            ).scalar_one_or_none()
+            status = "Accepted" if enabled is True else "Blocked"
+        return status
+
+    async def list_sessions(
+        self, station_id: str, *, limit: int = 100, before: int | None = None
+    ) -> list[dict[str, Any]]:
+        station_id = validate_station_id(station_id)
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValidationError("limit must be between 1 and 100")
+        if before is not None and (type(before) is not int or not 1 <= before <= 2_147_483_647):
+            raise ValidationError("before must be positive")
+        try:
+            async with self._session_factory() as session:
+                if await session.get(Station, station_id) is None:
+                    raise NotFound("station does not exist")
+                query = select(ChargingSession).where(ChargingSession.station_id == station_id)
+                if before is not None:
+                    query = query.where(ChargingSession.id < before)
+                records = await session.scalars(
+                    query.order_by(ChargingSession.id.desc()).limit(limit)
+                )
+                return [session_view(record) for record in records]
+        except SQLAlchemyError as exc:
+            raise self._dependency(exc) from exc
+
+    async def get_session(self, transaction_id: int) -> dict[str, Any]:
+        if type(transaction_id) is not int or not 1 <= transaction_id <= 2_147_483_647:
+            raise ValidationError("transaction ID must be positive")
+        try:
+            async with self._session_factory() as session:
+                record = await session.get(ChargingSession, transaction_id)
+                if record is None:
+                    raise NotFound("session does not exist")
+                return session_view(record)
+        except SQLAlchemyError as exc:
+            raise self._dependency(exc) from exc
 
     async def list_stations(self) -> list[dict[str, Any]]:
         try:

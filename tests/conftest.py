@@ -56,6 +56,7 @@ def migrated_database(test_settings: Settings) -> Iterator[None]:
             connection.execute(
                 text(
                     "DROP TABLE IF EXISTS "
+                    "meter_evidence, connector_status, charging_sessions, "
                     "ocpp_inbox, audit_events, permissions, id_tags, stations, "
                     "alembic_version CASCADE"
                 )
@@ -103,7 +104,16 @@ def migrated_database(test_settings: Settings) -> Iterator[None]:
     empty_engine = create_engine(test_settings.database_url)
     try:
         with empty_engine.connect() as connection:
-            for table in ("stations", "id_tags", "permissions", "audit_events", "ocpp_inbox"):
+            for table in (
+                "stations",
+                "id_tags",
+                "permissions",
+                "audit_events",
+                "ocpp_inbox",
+                "charging_sessions",
+                "meter_evidence",
+                "connector_status",
+            ):
                 assert connection.execute(text(f"SELECT count(*) FROM {table}")).scalar_one() == 0
     finally:
         empty_engine.dispose()
@@ -121,7 +131,8 @@ async def database_context(
     async with engine.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE TABLE ocpp_inbox, audit_events, permissions, id_tags, "
+                "TRUNCATE TABLE meter_evidence, connector_status, charging_sessions, "
+                "ocpp_inbox, audit_events, permissions, id_tags, "
                 "stations RESTART IDENTITY CASCADE"
             )
         )

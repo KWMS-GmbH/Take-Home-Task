@@ -130,12 +130,12 @@ async def test_malformed_traffic_does_not_poison_valid_calls_or_promote_owner() 
 
 
 @pytest.mark.asyncio
-async def test_unimplemented_unknown_and_unsolicited_response_frames_are_bounded_errors() -> None:
+async def test_incomplete_unknown_and_unsolicited_response_frames_are_bounded_errors() -> None:
     service = fake_service()
     async with running_server(service) as url:
         async with connect(f"{url}/ocpp/CP-1", subprotocols=["ocpp1.6"]) as ws:
             for frame, code in [
-                ([2, "a", "StartTransaction", {}], "NotImplemented"),
+                ([2, "a", "StartTransaction", {}], "ProtocolError"),
                 ([2, "b", "NoSuchAction", {}], "NotSupported"),
                 ([3, "c", {}], "ProtocolError"),
             ]:
