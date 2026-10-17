@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% import "session_macros.html" as session_ui %}
+
+{% macro exchanges(events, label) -%}
+  <details class="scenario-exchanges">
+    <summary>{{ label }} · {{ events|length }} events</summary>
+    {% if events %}
+      <ol class="frame-list">
+        {% for event in events %}<li class="frame-{{ event.kind }}"><span>{{ event.kind }}{% if event.conn %} · {{ event.conn }}{% endif %}</span><code>{{ event.text }}</code></li>{% endfor %}
+      </ol>
+    {% else %}<p class="phase-note">No exchanges recorded.</p>{% endif %}
+  </details>
+{%- endmacro %}
+
+{% block title %}Simulation results{% endblock %}
+
+{% block content %}
+  <section class="hero session-hero">
+    <div>
+      <p class="eyebrow">{{ report.stationId }} · scenario lab</p>
+      <h1>{{ 'All checks passed.' if report.allPassed else 'Evidence, not assumptions.' }}</h1>
+      <p class="hero-copy">{{ 'Run completed' if report.status == 'completed' else 'Run ' ~ report.status|replace('_', ' ') }} · Primary tag {{ report.idTag }} · Non-permitted tag {{ report.blockedIdTag }}</p>
+    </div>
+    <a class="text-link" href="{{ url_for('simulation', station_id=report.stationId) }}">Configure a new run →</a>
+  </section>
+
+  <section class="card run-summary" aria-labelledby="run-summary-title">
+    <div>
+      <p class="eyebrow">Two independent checks</p>
+      <h2 id="run-summary-title">{{ report.protocolPassed }}/8 protocol · {{ report.dataPassed }}/8 session data</h2>
+      <p class="phase-note">Protocol success alone does not prove correct energy, duration or lifecycle. API checks cannot prove internal audit-row counts; those have separate integration tests.</p>
+    </div>
+    <a class="text-link" href="{{ url_for('sessions', station_id=report.stationId) }}">Current session history →</a>
+  </section>
+  {% if report.error %}<div class="flash flash-error" role="status">{{ report.error }}</div>{% endif %}
+  {% if report.status == 'busy' %}<p class="review-note">Another run owns this station scope, or both run slots are busy. Wait for it to finish before submitting again.</p>{% endif %}
+  {% if report.status == 'denied' %}<p class="review-note">Primary authorization was not Accepted. No scenarios ran. Review this station's permissions in Access.</p>{% endif %}
+  {% if report.status == 'setup_error' %}<p class="review-note">{% if report.secondaryAuthorization.status == 'Accepted' %}The secondary tag is also Accepted. Choose a different tag that is Blocked or Invalid.{% else %}Run setup could not be verified. Review the service message and preflight results.{% endif %} No scenarios ran; permissions were not changed.</p>{% endif %}
+  {% if report.status == 'timed_out' %}<p class="review-note">Execution reached its deadline. Partial evidence is retained below; remaining scenarios did not run. Committed sessions were not rolled back.</p>{% endif %}
+
+  <div class="card-grid session-summary simulation-preflight">
+    {% for label, tag, result in [('Primary authorization', report.idTag, report.authorization), ('Secondary authorization', report.blockedIdTag, report.secondaryAuthorization)] %}
+      <section class="card">
+        <p class="eyebrow">Preflight · {{ tag }}</p>
+        <h2>{{ label }}</h2>
+        <p><span class="badge badge-{{ result.status|lower if result.status in ['Accepted', 'Blocked', 'Invalid'] else 'muted' }}">{{ result.status }}</span></p>
+        {% if result.error %}<p class="result-error">{{ result.error }}</p>{% endif %}
+        {{ exchanges(result.frames, 'Authorize-only exchange') }}
+      </section>
+    {% endfor %}
+  </div>
+
+  <p class="phase-note snapshot-notice"><strong>Run-time API snapshots:</strong> each session below was fetched immediately after its scenario, before later scenario Boots. The linked detail shows current durable state, which may now differ. Times are reported event times in UTC, not the snapshot capture time. This report is temporary; reloading/reposting can start a new run.</p>
+  <div class="scenario-list">
+    {% for case in report.scenarios %}
+      <article class="card scenario-card" id="scenario-{{ loop.index }}" aria-labelledby="scenario-title-{{ loop.index }}">
+        <div class="scenario-heading">
+          <div><p class="eyebrow">Scenario {{ '%02d'|format(loop.index) }} · {{ case.file }}</p><h2 id="scenario-title-{{ loop.index }}">{{ case.name }}</h2><p class="phase-note">{{ case.description }}</p></div>
+          <span class="badge badge-{{ 'accepted' if case.executionStatus == 'completed' else 'review' }}">Execution {{ case.executionStatus|replace('_', ' ') }}</span>
+        </div>
+        <div class="scenario-outcomes">
+          <div><span>Protocol</span><strong class="{{ 'outcome-pass' if case.passed else 'outcome-muted' if case.executionStatus == 'not_run' else 'outcome-fail' }}">{{ 'Not run' if case.executionStatus == 'not_run' else 'Passed' if case.passed else 'Failed / incomplete' }}</strong><small>{{ case.fails }} failures · {{ case.warns }} warnings</small></div>
+          <div><span>Session data</span><strong class="{{ 'outcome-pass' if case.dataStatus == 'passed' else 'outcome-fail' if case.dataStatus == 'failed' else 'outcome-muted' }}">{{ case.dataStatus|replace('_', ' ')|capitalize }}</strong><small>Checked independently through HTTP</small></div>
+        </div>
+        <details class="original-checks"><summary>Original assignment checks · {{ case.check|length }}</summary><ul>{% for check in case.check %}<li>{{ check }}</li>{% endfor %}</ul></details>
+        {% if case.dataChecks %}
+          <details class="original-checks automated-checks">
+            <summary>Automated session checks · {{ case.dataChecks|selectattr('passed', 'sameas', true)|list|length }}/{{ case.dataChecks|length }} passed</summary>
+            <ul class="data-checks">{% for check in case.dataChecks %}<li><span class="badge badge-{{ 'accepted' if check.passed is sameas true else 'review' if check.passed is none else 'invalid' }}">{{ 'Pass' if check.passed is sameas true else 'Unverified' if check.passed is none else 'Fail' }}</span><span><strong>{{ check.name }}</strong><small>{{ check.detail }}</small></span></li>{% endfor %}</ul>
+          </details>
+        {% endif %}
+        {% if case.sessions %}
+          <div class="table-scroll"><table class="session-table snapshot-table"><caption>API session snapshot after this scenario</caption><thead><tr><th scope="col">Transaction / tag</th><th scope="col">State / authorization</th><th scope="col">Start / stop (UTC)</th><th scope="col">Duration / energy</th><th scope="col">Data quality</th></tr></thead><tbody>
+            {% for session in case.sessions %}<tr><td><a class="text-link" href="{{ url_for('session_detail', transaction_id=session.transactionId) }}">#{{ session.transactionId }} · current detail</a><small>{{ session.stationId }} · connector {{ session.connectorId }}</small><small>{{ session.idTag }}</small></td><td>{{ session_ui.lifecycle(session) }}{{ session_ui.authorization(session) }}</td><td><time>{{ session.startedAt }}</time><small>{% if session.stoppedAt %}<time>{{ session.stoppedAt }}</time>{% else %}Unknown — no trusted stop{% endif %}</small></td><td>{% if session.durationSeconds is not none %}{{ session.durationSeconds }} s{% else %}<span class="unknown-value">Unknown duration</span>{% endif %}<small>{{ session_ui.energy(session) }}</small></td><td>Meter: {{ session.meterQuality }}<small>{{ 'Eligible' if session.billingEligible else 'Not eligible' }} for billing indication</small>{% if session.reviewReasons %}<small>Review: {{ session.reviewReasons|join(', ')|replace('_', ' ') }}</small>{% endif %}</td></tr>{% endfor %}
+          </tbody></table></div>
+        {% elif case.transactionIds %}<p class="review-note">Transaction IDs were observed, but no verified API session snapshot is available: {{ case.transactionIds|join(', ') }}. This is not a data pass.</p>
+        {% else %}<p class="phase-note">No session snapshot recorded{{ ' — this scenario did not run' if case.executionStatus == 'not_run' else '' }}.</p>{% endif %}
+        {% if case.framesTruncated %}<p class="review-note">Displayed exchanges are bounded: some event text or events were truncated. Session correlation uses the original received responses, not this shortened display.</p>{% endif %}
+        {{ exchanges(case.events, 'Protocol exchanges') }}
+      </article>
+    {% endfor %}
+  </div>
+{% endblock %}

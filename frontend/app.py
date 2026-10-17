@@ -29,8 +29,39 @@ MAX_STATION_ID_LENGTH = 64
 MAX_ID_TAG_LENGTH = 20
 MAX_AUTH_FRAMES = 20
 MAX_AUTH_FRAME_TEXT_LENGTH = 2_000
+MAX_SIMULATION_STATION_LENGTH = 58
+SCENARIO_FILES = (
+    "01_happy_path.json",
+    "02_duplicate_stop.json",
+    "03_reboot_no_stop.json",
+    "04_late_stop.json",
+    "05_timezone_offsets.json",
+    "06_meter_goes_backwards.json",
+    "07_two_connections_and_garbage.json",
+    "08_blocked_idtag.json",
+)
 
 Authorizer = Callable[[str, str, str], Awaitable[Mapping[str, Any]]]
+Simulator = Callable[[str, str, str, str, str], Awaitable[Mapping[str, Any]]]
+
+
+async def _default_simulator(
+    api_url: str, ocpp_url: str, station_id: str, id_tag: str, blocked_id_tag: str
+) -> Mapping[str, Any]:
+    from frontend.simulation import run_simulation
+
+    return await run_simulation(api_url, ocpp_url, station_id, id_tag, blocked_id_tag)
+
+
+async def _call_simulator(
+    simulator: Simulator,
+    api_url: str,
+    ocpp_url: str,
+    station_id: str,
+    id_tag: str,
+    blocked_id_tag: str,
+) -> Mapping[str, Any]:
+    return await simulator(api_url, ocpp_url, station_id, id_tag, blocked_id_tag)
 
 
 async def _call_authorizer(
@@ -374,11 +405,146 @@ def _normalize_auth_result(raw: Mapping[str, Any]) -> dict[str, Any]:
     return {"status": status, "error": display_error, "frames": frames}
 
 
+def _simulation_report(
+    raw: Mapping[str, Any], station_id: str, id_tag: str, blocked_id_tag: str
+) -> dict[str, Any]:
+    """Validate report structure; never turn missing/mismatched evidence into green."""
+
+    if not isinstance(raw, Mapping) or any(
+        raw.get(key) != expected
+        for key, expected in (
+            ("stationId", station_id),
+            ("idTag", id_tag),
+            ("blockedIdTag", blocked_id_tag),
+        )
+    ):
+        raise BackendUnavailable("Unexpected simulation identity")
+    status = raw.get("status")
+    if status not in {"completed", "denied", "setup_error", "busy", "unavailable", "timed_out"}:
+        raise BackendUnavailable("Unexpected simulation status")
+    authorization: dict[str, Any] = {}
+    for key in ("authorization", "secondaryAuthorization"):
+        value = raw.get(key)
+        if not isinstance(value, Mapping):
+            raise BackendUnavailable("Unexpected simulation authorization")
+        authorization[key] = _normalize_auth_result(value)
+    scenarios = raw.get("scenarios")
+    if not isinstance(scenarios, list) or len(scenarios) != len(SCENARIO_FILES):
+        raise BackendUnavailable("Unexpected simulation scenario count")
+    cases: list[dict[str, Any]] = []
+    for expected_file, value in zip(SCENARIO_FILES, scenarios, strict=True):
+        if not isinstance(value, Mapping) or value.get("file") != expected_file:
+            raise BackendUnavailable("Unexpected simulation scenario")
+        case = dict(value)
+        for key in ("name", "description"):
+            if not isinstance(case.get(key), str):
+                raise BackendUnavailable("Unexpected simulation description")
+        for key in ("check", "charge_points"):
+            lines = case.get(key)
+            if (
+                not isinstance(lines, list)
+                or len(lines) > 32
+                or not all(isinstance(line, str) for line in lines)
+            ):
+                raise BackendUnavailable("Unexpected simulation checks")
+        for key in ("fails", "warns"):
+            if type(case.get(key)) is not int or case[key] < 0:
+                raise BackendUnavailable("Unexpected simulation counters")
+        execution = case.get("executionStatus")
+        data_status = case.get("dataStatus")
+        if (
+            execution not in {"completed", "partial", "not_run"}
+            or data_status not in {"passed", "failed", "unverified", "not_run"}
+            or type(case.get("passed")) is not bool
+        ):
+            raise BackendUnavailable("Unexpected simulation outcome")
+        if case["passed"] and (execution != "completed" or case["fails"]):
+            raise BackendUnavailable("Contradictory protocol result")
+        checks = case.get("dataChecks")
+        if not isinstance(checks, list) or len(checks) > 32:
+            raise BackendUnavailable("Unexpected simulation data checks")
+        for check in checks:
+            if (
+                not isinstance(check, Mapping)
+                or not isinstance(check.get("name"), str)
+                or not isinstance(check.get("detail"), str)
+                or (check.get("passed") is not None and type(check["passed"]) is not bool)
+            ):
+                raise BackendUnavailable("Unexpected simulation data check")
+        if data_status == "passed" and (
+            execution != "completed"
+            or not checks
+            or any(check.get("passed") is not True for check in checks)
+        ):
+            raise BackendUnavailable("Contradictory data result")
+        ids = case.get("transactionIds")
+        if (
+            not isinstance(ids, list)
+            or len(ids) > 16
+            or any(type(item) is not int or not 1 <= item <= 2_147_483_647 for item in ids)
+            or len(set(ids)) != len(ids)
+        ):
+            raise BackendUnavailable("Unexpected correlated transaction IDs")
+        records = case.get("sessions")
+        if not isinstance(records, list) or len(records) > 16:
+            raise BackendUnavailable("Unexpected simulation sessions")
+        case["sessions"] = [_session_record(record) for record in records]
+        session_ids = [record["transactionId"] for record in case["sessions"]]
+        if (
+            any(record["stationId"] != station_id for record in case["sessions"])
+            or any(item not in ids for item in session_ids)
+            or len(set(session_ids)) != len(session_ids)
+            or (data_status == "passed" and (not ids or set(session_ids) != set(ids)))
+        ):
+            raise BackendUnavailable("Unexpected simulation session correlation")
+        events = case.get("events")
+        if (
+            not isinstance(events, list)
+            or len(events) > 500
+            or not all(isinstance(event, Mapping) for event in events)
+        ):
+            raise BackendUnavailable("Unexpected simulation exchanges")
+        case["framesTruncated"] = case.get("framesTruncated") is True or any(
+            len(str(event.get("text", ""))) > MAX_AUTH_FRAME_TEXT_LENGTH for event in events
+        )
+        case["events"] = [
+            {
+                "kind": event.get("kind")
+                if event.get("kind") in {"send", "recv", "info", "pass", "warn", "fail"}
+                else "info",
+                "conn": _bounded_text(event["conn"], 32) if event.get("conn") else None,
+                "text": _bounded_text(event.get("text", ""), MAX_AUTH_FRAME_TEXT_LENGTH),
+            }
+            for event in events
+        ]
+        cases.append(case)
+    if status == "completed" and (
+        authorization["authorization"]["status"] != "Accepted"
+        or authorization["secondaryAuthorization"]["status"] not in {"Blocked", "Invalid"}
+        or any(case["executionStatus"] != "completed" for case in cases)
+    ):
+        raise BackendUnavailable("Contradictory completed run")
+    return {
+        "stationId": station_id,
+        "idTag": id_tag,
+        "blockedIdTag": blocked_id_tag,
+        "status": status,
+        "error": _bounded_text(raw["error"], 400) if raw.get("error") else None,
+        **authorization,
+        "scenarios": cases,
+        "protocolPassed": sum(case["passed"] for case in cases),
+        "dataPassed": sum(case["dataStatus"] == "passed" for case in cases),
+        "allPassed": status == "completed"
+        and all(case["passed"] and case["dataStatus"] == "passed" for case in cases),
+    }
+
+
 def create_app(
     test_config: Mapping[str, Any] | None = None,
     *,
     backend_client: BackendAPI | None = None,
     authorizer: Authorizer | None = None,
+    simulator: Simulator | None = None,
 ) -> Flask:
     """Create the frontend with injectable network boundaries for focused tests."""
 
@@ -405,8 +571,10 @@ def create_app(
     CSRFProtect(app)
     api = backend_client or HttpBackendAPI(app.config["BACKEND_API_URL"])
     probe = authorizer or _default_authorizer(float(app.config["AUTHORIZATION_TIMEOUT_SECONDS"]))
+    simulate = simulator or _default_simulator
     app.extensions["backend_api"] = api
     app.extensions["ocpp_authorizer"] = probe
+    app.extensions["ocpp_simulator"] = simulate
 
     @app.after_request
     def security_headers(response: Any) -> Any:
@@ -441,6 +609,72 @@ def create_app(
     @app.get("/dashboard")
     def dashboard() -> Any:
         return render_dashboard()
+
+    @app.route("/simulation", methods=["GET", "POST"])
+    def simulation() -> Any:
+        # Permission is checked over OCPP inside the run, never inferred from the
+        # dashboard matrix. Avoid an unrelated permission-list request here too.
+        stations = _stations(api)
+        tags = _records(api.get("/api/id-tags"), resource="ID tag")
+        if any(not isinstance(tag.get("id"), str) for tag in tags):
+            raise BackendUnavailable("Unexpected ID tag response")
+        selected_station = request.form.get("station_id", request.args.get("station_id", ""))
+        selected_tag = request.form.get("id_tag", "")
+        blocked_tag = request.form.get("blocked_id_tag", "")
+        context = {
+            "stations": stations,
+            "tags": tags,
+            "selected_station": selected_station,
+            "selected_tag": selected_tag,
+            "blocked_tag": blocked_tag,
+        }
+        if request.method == "GET":
+            return render_template("simulation.html", **context)
+        try:
+            station_id = _validate_identifier(
+                selected_station,
+                label="Simulation station ID",
+                max_length=MAX_SIMULATION_STATION_LENGTH,
+            )
+            tag_id = _id_tag(selected_tag)
+            blocked_id = _id_tag(blocked_tag)
+            if not any(station["id"] == station_id for station in stations):
+                raise ValueError("Choose an existing station before running scenarios.")
+            if tag_id == blocked_id:
+                raise ValueError("Choose a different non-permitted tag for scenario 08.")
+            if request.form.get("acknowledge_boot") != "yes":
+                raise ValueError("Acknowledge the Boot and connection takeover effects first.")
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return render_template("simulation.html", **context), 400
+        try:
+            raw = asyncio.run(
+                _call_simulator(
+                    simulate,
+                    app.config["BACKEND_API_URL"],
+                    app.config["OCPP_URL"],
+                    station_id,
+                    tag_id,
+                    blocked_id,
+                )
+            )
+            report = _simulation_report(raw, station_id, tag_id, blocked_id)
+        except Exception as exc:
+            # No raw frames, tokens, tags or internal endpoint details enter the log.
+            app.logger.error("simulation_failed", extra={"error_type": type(exc).__name__})
+            return (
+                render_template(
+                    "error.html",
+                    title="Simulation unavailable",
+                    message="The run could not produce a trustworthy report. Charging records "
+                    "already committed may remain in Sessions. Return to Simulate to try again.",
+                ),
+                503,
+            )
+        response_status = {"busy": 409, "unavailable": 503, "timed_out": 504}.get(
+            report["status"], 200
+        )
+        return render_template("simulation_results.html", report=report), response_status
 
     @app.get("/sessions")
     def sessions() -> Any:

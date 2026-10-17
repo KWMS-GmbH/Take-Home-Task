@@ -106,7 +106,7 @@ def test_empty_dashboard_explains_setup_sequence() -> None:
     assert b"Set up your first authorization check" in response.data
     for step in (b"Add a station", b"Add an ID tag", b"Allow the tag", b"Check authorization"):
         assert step in response.data
-    assert b"Browser scenario execution arrives in the next slice" in response.data
+    assert b"run all eight supplied scenarios" in response.data
 
 
 def test_csrf_is_required_before_a_management_write() -> None:
