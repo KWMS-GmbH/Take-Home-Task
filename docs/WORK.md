@@ -109,15 +109,14 @@ Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`
 
 ## WP-2 — Session correctness, audit and scenario experience
 
-Status: discussion/preparation; WP-1b merge confirmed. Extend its delivered session
-rules and atomic audit with complete supplied-scenario proof and the scenario UI.
-Implementation is not yet approved. Preparation branch: `codex/scenario-slice`.
-Agree bounded execution/admission, same-station run isolation and report lifetime
-before the concrete spec/plan. Source review found that whole-second timestamp
-rendering can alias Start identities across fast successive scenarios; preserve
-originals and retry policy while resolving this in the adapter.
+Status: in progress. Candidate approved D-28–D-30: bounded sequential execution,
+one UI run per station/start spacing and transient reports with durable sessions/
+audit. Concrete contract is in SPEC.md; [plan](plans/WP-2.md) persisted.
+Branch: `codex/scenario-slice`. Whole-second rendering/cross-scenario aliasing and
+lease expiry without fencing were found during preparation; resolve through the
+adapter and backend token checks, preserving originals and established retry rules.
 
-- [ ] Review delivered state/retry/meter rules against the remaining scenarios;
+- [x] Review delivered state/retry/meter rules against the remaining scenarios;
   discuss remaining gaps, update spec and persist implementation plan.
 - [ ] Extend session rules/tests only where remaining acceptance reveals a gap.
 - [ ] Expose reliable scenario correlation using the delivered audit/replay boundary.

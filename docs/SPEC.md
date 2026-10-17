@@ -1,8 +1,8 @@
 # Charging Session Service — living specification
 
 Status: foundation/WP-1a imported with full history into canonical KWMS main;
-WP-1b manually merged as KWMS PR #2 (`4b2db68`), 2026-10-17. WP-2 discussion starts;
-its concrete execution/reporting mechanics are not yet approved.
+WP-1b manually merged as KWMS PR #2 (`4b2db68`), 2026-10-17. Candidate approved WP-2's
+bounded sequential execution, per-station exclusion and transient-report scope.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -75,6 +75,9 @@ the supplied runner's warning/failure count alone.
 | D-25 | Candidate approved treating a different, non-retry Start on an occupied connector as a new physical attempt: mark the previous session interrupted without inventing its stop time, create the new active attempt and return its new transaction ID/current authorization. Flag the conflict for review and allow a later Stop to correct the previous session. This preserves one active session per connector and the brief's mandatory transaction-ID response. |
 | D-26 | Candidate approved rejecting unknown/wrong-station transaction references without session mutation, while retaining otherwise valid but suspicious time/meter evidence with review indications. Do not fabricate values, destructively replace trustworthy summaries or overwrite an already established completion. Preserve atomic audit and first-established Stop semantics. |
 | D-27 | Candidate approved the concrete WP-1b contract/plan: exact active-session Start retries never expire; interrupted/completed matches have a configurable default 24-hour grace from server receipt of the lifecycle transition. Stop-before-Start is acknowledged/evidenced and changes active to interrupted, without a trusted stop/duration/final energy; later admissible Stop corrects that same session. |
+| D-28 | Candidate approved running all eight scenarios sequentially with a hard deadline, one UI run per selected station, explicit Boot/takeover warning and no background-job framework. PostgreSQL coordinates short-lived admission across frontend/backend processes; do not hold a database transaction over network work. |
+| D-29 | Candidate approved spacing scenario starts to avoid whole-second Start identity collisions without changing originals or weakening retries. The adapter also resolves relative timestamps from one instant within each scenario so intended duplicates stay identical; copied in-memory steps only, never shared replay-global monkeypatches. |
+| D-30 | Candidate approved separate protocol/data results and temporary simulation reports, while sessions/business audit stay durable. Correlate actual Start response IDs and fetch those exact sessions via HTTP. No run archive/resume engine; timeout/failure does not undo committed charging data. |
 
 These are derived choices, not claims that KWMS specified every mechanism.
 
@@ -176,6 +179,75 @@ second session. Passing this remains mandatory even if ordinary UI runs are seri
 - Assignment integrity remains clean; warnings explain the remaining shared-ID side effect.
 
 ## Implementation boundaries and mechanics
+
+### WP-2 approved scope and concrete implementation contract
+
+- Simulation form selects an existing station, candidate tag and distinct second
+  non-permitted tag. POST is CSRF protected and requires explicit acknowledgement
+  that deliberate scenario Boots can interrupt that station's existing sessions.
+  No automatic permission grants/revocations, hidden station substitution, arbitrary
+  server URL, uploaded scenario or user-selected filesystem path.
+- Scenario 07 deliberately opens `<station>-OTHER`; expose that exact derived
+  identity and Boot side effect, reserve it in the same run scope, and fence its
+  token-bearing sockets too. Reject overlapping scopes (including another run
+  selecting the first run's derived station). Simulation base IDs are limited to
+  58 characters so the unchanged suffix fits the general 64-character station cap;
+  reject longer selections before lease/OCPP work, without changing management IDs.
+- Acquire a short-lived internal HTTP lease before OCPP preflight; reject same-station
+  overlap or exhausted capacity clearly. Initial bounds: two global run slots,
+  one per station, 30-second lease, 20-second overall async execution deadline,
+  bounded cleanup/release before the existing 30-second frontend worker limit.
+  These are conservative demo defaults, not capacity proof. Admission/release uses
+  short station-then-slot locked PostgreSQL transactions and token-checked release;
+  expired slots are reusable if a frontend process dies. Static slot rows are
+  coordination metadata, not automatic station/tag/session demo data.
+- Lease expiry alone is not fencing: simulated sockets carry optional opaque
+  `X-Simulation-Token` handshake metadata. Validate it at registration and in the
+  existing station-locked call boundary before promoting/replaying/mutating. An
+  expired/reassigned run cannot resume writes by opening a newer socket. Ordinary
+  untagged OCPP clients remain unchanged and may still interfere; the token is run
+  coordination, not station authentication or a substitute for production TLS/login.
+- Real Authorize-only preflight must return Accepted for the candidate tag, and
+  explicitly Blocked or Invalid for the second tag, before any scenario runs.
+  Unavailable/unrecognized secondary outcomes are not proof of non-permission.
+  Do not trust a previous
+  UI result/client flag. A denied/unavailable primary check runs no scenarios;
+  accidentally permitted secondary tag is an actionable setup failure, never
+  silently revoked. Permission changes during execution remain effective and may
+  cause a visibly failed scenario rather than being hidden.
+- Execute only the fixed eight original JSON fixtures in filename order using an
+  adapter around the supplied public replay helpers. Keep all original files
+  byte-for-byte; bound socket opens/closes, frames, response waits, event count/text
+  and total runtime. Retain bounded partial exchanges on failure, close sockets,
+  release the lease, show completed/partial cases and mark later cases not run.
+  No durable queue/job continuation; browser reports are not stored in cookies/DB.
+  Reloading/reposting can launch a new explicit run, never silently undo the old one.
+- Use one UTC rendering instant per scenario, preserving each relative offset and
+  explicit timezone. Space distinct scenario instants by at least 1.1 seconds;
+  initial not-before time also follows recent station Start receipt so consecutive
+  suite invocations do not share a whole-second identity. Real event-time spacing,
+  not fabricated transaction IDs, enforces this; an unexpectedly reused transaction
+  ID across distinct scenarios is a data-check failure, not silently accepted.
+- Correlate requests/responses by connection plus message ID, retain actual integer
+  Start IDs and station/tag/start evidence, then fetch each exact ID via HTTP.
+  Missing/mismatched/unavailable API data is failed/unverified, not protocol success.
+  Snapshot each scenario's API result before later scenarios' deliberate Boots;
+  label it as a run-time snapshot and link the durable current session detail.
+- Use a small eight-case expectation manifest, not a rules engine. Display original
+  check lines verbatim, protocol pass/fail/warnings, separate automated data checks,
+  collapsible escaped exchanges and API-derived lifecycle/start/stop/duration/energy.
+  Checks compare actual sent timestamps/counters and case outcomes: 01/02 10.0 kWh,
+  03 interrupted/6.0 provisional or explicit unknown, 04 one hour/4.0 kWh from late
+  event time, 05 45 minutes/8.0 kWh across offsets, 06 suspicious/null energy,
+  07 one completed/3.0 kWh across sockets and isolation after garbage, 08 denied
+  physical attempt with ID/noneligible. Duplicate completion/audit effects require
+  independent PG assertions too; the UI must not claim its API-only checks prove
+  internal audit-row counts. Case 9 remains snapshot/revocation tests and rationale.
+- Add exact all-action extra-field/collision wire coverage and meaningful all-case
+  API/DB assertions. Verify same-station exclusion across instances, stale token
+  rejection, lease cleanup/expiry, authorization gating, bounded failure/partial
+  presentation and real browser operation on deployed three-replica Swarm.
+  Broader process-crash/load/retention and final acceptance remain WP-3/WP-4.
 
 ### WP-1b approved implementation contract
 
@@ -344,7 +416,7 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 | Q-05 | Atomic session audit fields and bounded/redacted operational logging with rotation are implemented. Retention and reliable full-scenario result extraction remain; do not promise durable external diagnostic collection. | WP-2, WP-3 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
 | Q-07 | D-23 implemented/verified and WP-1b manually merged: Authorize-only UI adapter, unchanged originals, documented ownership caveat, exact active-view preservation and stale-socket rejection. Full scenario browser experience remains WP-2. | WP-2 |
-| Q-08 | WP-2 mechanics need candidate agreement: bounded execution/admission versus background jobs; same-station run isolation and whole-second Start-fingerprint aliasing between supplied scenarios; transient versus durable run reports/partial failures. Existing session/audit durability and original files must be preserved. | Candidate, WP-2 |
+| Q-08 | Candidate approved scope as D-28–D-30. Implement/review the concrete contract above; bounds are initial demo limits, not capacity proof. Original-file integrity, exact correlation and partial-failure evidence remain acceptance gates. | WP-2 |
 
 ## Source findings and spec change history
 
@@ -400,6 +472,11 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   of Q-08 mechanics. Source review found whole-second timestamps shared by several
   scenarios can collide with D-24/D-27 retry identity; resolve visibly in the adapter,
   never by editing supplied fixtures or weakening established retry behavior.
+- 2026-10-17: Candidate approved bounded sequential scenarios, per-station run
+  exclusion/start spacing and transient reports with durable session/audit history.
+  Independent design review caught lease-expiry-without-fencing and shared-clock
+  monkeypatch risks; the contract uses station-locked run-token validation and
+  scenario-local timestamp rendering. This records implementation scope, not a pass.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),
