@@ -7,6 +7,8 @@ WP-3 split/isolation/retention boundary and explicitly confirmed the WP-3b defau
 below: separated health/readiness, isolated recovery/load proof and safe manual cleanup.
 WP-3b is manually merged as KWMS PR #5 (`9c66794`). Candidate approved the
 behavior-preserving readability work below before final acceptance.
+WP-R1 is manually merged as PR #6 (`3e3c854`); the candidate authorized WP-R2
+frontend/simulator readability next, then the separate documentation rewrite.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -190,6 +192,55 @@ second session. Passing this remains mandatory even if ordinary UI runs are seri
 - Assignment integrity remains clean; warnings explain the remaining shared-ID side effect.
 
 ## Implementation boundaries and mechanics
+
+### WP-R2 approved readability contract — frontend/simulator
+
+Structural cleanup of merged `3e3c854`, with no user-visible or charging-policy change.
+The candidate's existing grilling/approval (D-36/D-37) and explicit continuation cover
+this package; material discoveries still return for agreement, not silent fixes.
+
+- Keep `create_app` injection parameters/extensions, existing public test imports,
+  URL paths, endpoint names, methods, redirects, status/error text and templates.
+  Keep CSRF before effects, body/cookie/header protections, escaping and sanitized logs.
+- Separate bounded HTTP client/errors, the Authorize-only wire probe, pure view/report
+  validation and route groups. Use ordinary registration functions, not a new framework,
+  Blueprint prefixes, browser-side simulator, endpoint or database dependency.
+- Separate fixed-fixture playback/correlation, HTTP snapshots and suite coordination.
+  Share the unchanged filename allowlist; preserve original helper/fixture bytes.
+  Keep one clock per case, typed saved IDs, not-before/1.1s pacing, exact transaction
+  correlation and snapshots before subsequent Boots. Split independent data checks into
+  named ordered helpers without weakening missing/invalid/unknown evidence or building
+  a rules engine. Keep check names/order/text and tri-state results.
+- Preserve lease/preflight/token ordering, fresh real primary/secondary authorization,
+  no permission repair, execution deadline and separately bounded cleanup/release.
+  Correlate full frames before display truncation. Cancellation retains partial evidence,
+  closes sockets and does not claim committed charging work was rolled back.
+- Add characterization only for meaningful uncovered extraction boundaries: HTTP outcome
+  mapping, route/error security contract, correlation after display exhaustion and lease
+  release failure. Run against the unchanged frontend before extraction. Existing
+  regression assertions remain unchanged; actual bugs require separately disclosed fixes.
+- Run focused/full container checks, source guard, owned DB recovery, normal redeploy/
+  three-replica smoke, independent code/architecture review and live browser QA.
+  No live fault injection, purge, new UI feature, dependency, schema or deployed service.
+  Full reader/spec/history/decision-log rewrite remains WP-R3 after manual merge.
+
+Implemented with ordinary route registration and unchanged endpoint names. `app.py`
+is the assembly point; bounded clients/probe, dashboard/view validation, report
+validation and web protections have named modules. Fixed catalog/playback, API
+snapshots and ordered independent scenario/session predicates are separate from
+the lease/deadline coordinator. The existing public test imports remain available.
+Baseline characterization, full/static/recovery/deployed/browser evidence is in
+WORK.md; no template, stylesheet, backend, schema, dependency or behavior change.
+
+Candidate later approved a separate test-only CI repair: the fake-Docker controller
+test's accelerated polling must not shrink its real command-watchdog budgets. Preserve
+all ownership/marker guards and production settings, keep exact child cleanup and
+finite test bounds, and prove delayed-valid versus genuinely overdue commands.
+This changes verification mechanics, not frontend or charging behavior; actual
+failure/repair evidence remains separate in WORK.md.
+The controller now tracks a passive `/bin/sleep` watchdog separately from accelerated
+observations. It reaps that child on completion, timeout and trap cleanup; only the
+parent signals its exact command handle. A finished command retains its real status.
 
 ### WP-R1 approved readability contract — backend
 
@@ -707,6 +758,13 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   characterization, full/static/recovery and normal three-replica redeploy/smoke
   pass; independent equivalence/architecture review finds no blocker. Frontend and
   documentation reorganization wait for separate manually merged packages.
+
+- 2026-10-17: Candidate manually merged backend readability PR #6 (`3e3c854`),
+  identical to reviewed `689cb28`, and explicitly authorized frontend/simulator
+  readability before the separate documentation rewrite. WP-R2 keeps existing
+  contracts and ordered evidence checks; baseline characterization, full/static/
+  recovery/deployment and live browser gates pass, with no independent-review blocker.
+  Candidate manual review/merge and final acceptance remain separate gates.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),

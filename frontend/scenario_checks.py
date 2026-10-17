@@ -1,138 +1,27 @@
-"""Independent, API-visible postconditions for the eight fixed supplied cases.
+"""Independent, ordered postconditions for the eight fixed supplied cases.
 
-These checks compare sent evidence with the exact API session, not the replay's
-green protocol result. They cannot prove internal audit/event row counts.
+Compare sent evidence with exact API sessions, not green protocol counters.
+These checks cannot prove internal audit/event row counts.
 """
 
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, TypeGuard
+from typing import Any
 
-
-@dataclass(frozen=True)
-class Expectation:
-    start_wh: int
-    stop_wh: int | None
-    energy_kwh: float | None
-    seconds: int | None
-    lifecycle: str = "completed"
-    quality: str = "valid"
-    provisional: bool = False
-    eligible: bool = True
-    samples: tuple[tuple[int, int], ...] = ()
-
-
-EXPECTATIONS = {
-    "01_happy_path.json": Expectation(
-        1000, 11000, 10.0, 3300, samples=((1200, 4000), (2400, 8000))
-    ),
-    "02_duplicate_stop.json": Expectation(1000, 11000, 10.0, 3300),
-    "03_reboot_no_stop.json": Expectation(
-        1000, None, 6.0, None, "interrupted", "valid", True, False, ((1800, 7000),)
-    ),
-    "04_late_stop.json": Expectation(2000, 6000, 4.0, 3600),
-    "05_timezone_offsets.json": Expectation(1000, 9000, 8.0, 2700),
-    "06_meter_goes_backwards.json": Expectation(
-        500000, 1200, None, 3300, quality="suspicious", eligible=False
-    ),
-    "07_two_connections_and_garbage.json": Expectation(1000, 4000, 3.0, 3300),
-    "08_blocked_idtag.json": Expectation(1000, 1500, 0.5, 3300, eligible=False),
-}
-
-CALL_COUNTS = {
-    "01_happy_path.json": {
-        "BootNotification": 1,
-        "Authorize": 1,
-        "StatusNotification": 3,
-        "StartTransaction": 1,
-        "MeterValues": 2,
-        "StopTransaction": 1,
-    },
-    "02_duplicate_stop.json": {"BootNotification": 2, "StartTransaction": 1, "StopTransaction": 2},
-    "03_reboot_no_stop.json": {
-        "BootNotification": 2,
-        "StartTransaction": 1,
-        "MeterValues": 1,
-        "StatusNotification": 1,
-    },
-    "04_late_stop.json": {"BootNotification": 2, "StartTransaction": 1, "StopTransaction": 1},
-    "05_timezone_offsets.json": {
-        "BootNotification": 1,
-        "StartTransaction": 1,
-        "StopTransaction": 1,
-    },
-    "06_meter_goes_backwards.json": {
-        "BootNotification": 1,
-        "StartTransaction": 1,
-        "StopTransaction": 1,
-    },
-    "07_two_connections_and_garbage.json": {
-        "BootNotification": 4,
-        "StartTransaction": 2,
-        "StopTransaction": 1,
-        "DataTransfer": 1,
-    },
-    "08_blocked_idtag.json": {
-        "BootNotification": 1,
-        "Authorize": 1,
-        "StartTransaction": 1,
-        "StopTransaction": 1,
-    },
-}
-
-
-def _check(name: str, passed: bool | None, detail: str) -> dict[str, Any]:
-    return {"name": name, "passed": passed, "detail": detail}
-
-
-def _instant(value: Any, *, utc_output: bool = False) -> datetime | None:
-    if not isinstance(value, str) or value != value.strip():
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        if parsed.tzinfo is None or parsed.utcoffset() is None:
-            return None
-        if utc_output and parsed.utcoffset() != timedelta(0):
-            return None
-        return parsed.astimezone(UTC)
-    except (ValueError, OverflowError):
-        return None
-
-
-def _number(value: Any, expected: int | float | None) -> bool:
-    if expected is None:
-        return value is None
-    # Equality to these finite manifest/calculated values also rejects NaN/Infinity.
-    return type(value) in {int, float} and value == expected
-
-
-def _status(call: dict[str, Any]) -> str | None:
-    response = call.get("response")
-    info = response.get("idTagInfo") if isinstance(response, dict) else None
-    status = info.get("status") if isinstance(info, dict) else None
-    return status if isinstance(status, str) else None
-
-
-def _success(call: dict[str, Any]) -> bool:
-    return type(call.get("responseType")) is int and call["responseType"] == 3
-
-
-def _boot_accepted(call: dict[str, Any]) -> bool:
-    response = call.get("response")
-    return (
-        call["action"] == "BootNotification"
-        and _success(call)
-        and isinstance(response, dict)
-        and response.get("status") == "Accepted"
-    )
-
-
-def _transaction_id(value: Any) -> TypeGuard[int]:
-    return type(value) is int and 1 <= value <= 2_147_483_647
+from .scenario_catalog import CALL_COUNTS, EXPECTATIONS, Expectation
+from .scenario_values import (
+    _boot_accepted,
+    _check,
+    _instant,
+    _number,
+    _status,
+    _success,
+    _transaction_id,
+)
+from .session_checks import energy_checks, event_time_check, identity_checks, lifecycle_check
 
 
 def _valid_call(call: Any) -> bool:
@@ -248,51 +137,28 @@ def check_scenario(
         )
         return checks
     session = sessions[0]
-    checks.append(
-        _check(
-            "Complete API snapshot",
-            {
-                "transactionId",
-                "stationId",
-                "connectorId",
-                "idTag",
-                "authorizationStatus",
-                "lifecycle",
-                "meterQuality",
-                "reviewReasons",
-                "startedAt",
-                "stoppedAt",
-                "durationSeconds",
-                "energyKWh",
-                "energyProvisional",
-                "billingEligible",
-                "meterStartWh",
-                "meterStopWh",
-                "lastMeterWh",
-                "lastMeterAt",
-            }
-            <= session.keys(),
-            "Missing nullable fields are not evidence of an explicitly unknown API value.",
-        )
-    )
-    checks.append(
-        _check(
-            "Exact API session",
-            _transaction_id(session.get("transactionId"))
-            and session["transactionId"] == transaction_id
-            and session.get("stationId") == station_id
-            and type(session.get("connectorId")) is int
-            and session["connectorId"] == request.get("connectorId")
-            and session.get("idTag") == expected_tag
-            and session.get("authorizationStatus") == auth,
-            "API identity and authorization-at-start must match the sent Start and its response.",
-        )
-    )
+    checks.extend(identity_checks(session, request, transaction_id, station_id, expected_tag, auth))
     started = _instant(request.get("timestamp"))
     stops = [call for call in calls if call["action"] == "StopTransaction"]
     stop = stops[0] if stops else None
     stop_request = stop["request"] if stop else {}
     stopped = _instant(stop_request.get("timestamp"))
+    checks.append(_stop_check(stops, expected, transaction_id, station_id, stopped))
+    checks.append(event_time_check(session, expected, started, stopped))
+    checks.append(lifecycle_check(session, expected))
+    checks.extend(energy_checks(session, request, stop_request, expected))
+    checks.append(_meter_check(calls, session, start, expected, transaction_id, station_id))
+    checks.extend(_case_checks(file, calls, start, session, station_id, blocked_id_tag))
+    return checks
+
+
+def _stop_check(
+    stops: list[dict[str, Any]],
+    expected: Expectation,
+    transaction_id: int,
+    station_id: str,
+    stopped: datetime | None,
+) -> dict[str, Any]:
     stop_ok = (
         not stops
         if expected.stop_wh is None
@@ -309,87 +175,25 @@ def check_scenario(
             for call in stops
         )
     )
-    checks.append(
-        _check(
-            "Stop references and counters",
-            stop_ok,
-            "Stops must acknowledge the same transaction, counter and instant; reboot has no Stop.",
-        )
+    return _check(
+        "Stop references and counters",
+        stop_ok,
+        "Stops must acknowledge the same transaction, counter and instant; reboot has no Stop.",
     )
-    duration = (
-        (stopped - started).total_seconds() if started is not None and stopped is not None else None
-    )
-    checks.append(
-        _check(
-            "UTC event times and duration",
-            started is not None
-            and _instant(session.get("startedAt"), utc_output=True) == started
-            and (
-                session.get("stoppedAt") is None and session.get("durationSeconds") is None
-                if expected.seconds is None
-                else stopped is not None
-                and _instant(session.get("stoppedAt"), utc_output=True) == stopped
-                and duration == expected.seconds
-                and _number(session.get("durationSeconds"), duration)
-            ),
-            "API times must be the sent UTC instants; duration is their independent difference.",
-        )
-    )
-    checks.append(
-        _check(
-            "Lifecycle and meter quality",
-            session.get("lifecycle") == expected.lifecycle
-            and session.get("meterQuality") == expected.quality
-            and isinstance(session.get("reviewReasons"), list)
-            and all(isinstance(reason, str) for reason in session["reviewReasons"])
-            and (
-                "meter_backwards" in session["reviewReasons"]
-                if expected.quality == "suspicious"
-                else "boot_interrupted" in session["reviewReasons"]
-                if expected.lifecycle == "interrupted"
-                else not session["reviewReasons"]
-            ),
-            f"Expected {expected.lifecycle}/{expected.quality} and appropriate review reasons.",
-        )
-    )
-    checks.append(
-        _check(
-            "Energy and eligibility",
-            _number(session.get("meterStartWh"), expected.start_wh)
-            and _number(session.get("meterStopWh"), expected.stop_wh)
-            and _number(session.get("energyKWh"), expected.energy_kwh)
-            and session.get("energyProvisional") is expected.provisional
-            and session.get("billingEligible") is expected.eligible,
-            "Expected "
-            f"{expected.energy_kwh if expected.energy_kwh is not None else 'unknown'} kWh; "
-            f"provisional={expected.provisional}, "
-            f"billing-eligible={expected.eligible} (not invoicing).",
-        )
-    )
-    if expected.stop_wh is not None:
-        sent_start = request.get("meterStart")
-        sent_stop = stop_request.get("meterStop")
-        calculated = (
-            (Decimal(sent_stop) - Decimal(sent_start)) / Decimal(1000)
-            if type(sent_start) is int and type(sent_stop) is int
-            else None
-        )
-        checks.append(
-            _check(
-                "Independent energy calculation",
-                calculated is not None
-                and (
-                    expected.energy_kwh is None
-                    and calculated < 0
-                    and session.get("energyKWh") is None
-                    or expected.energy_kwh is not None
-                    and calculated == Decimal(str(expected.energy_kwh))
-                    and _number(session.get("energyKWh"), float(calculated))
-                ),
-                "Energy is sent endpoint Wh difference / 1000; backwards endpoints remain unknown.",
-            )
-        )
-    checks.append(_meter_check(calls, session, start, expected, transaction_id, station_id))
+
+
+def _case_checks(
+    file: str,
+    calls: list[dict[str, Any]],
+    start: dict[str, Any],
+    session: dict[str, Any],
+    station_id: str,
+    blocked_id_tag: str,
+) -> list[dict[str, Any]]:
+    checks: list[dict[str, Any]] = []
+    stops = [call for call in calls if call["action"] == "StopTransaction"]
+    stop = stops[0] if stops else None
+    auth = _status(start)
     if file == "03_reboot_no_stop.json":
         meters = [call for call in calls if call["action"] == "MeterValues"]
         rebooted = len(meters) == 1 and any(

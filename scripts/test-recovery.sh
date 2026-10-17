@@ -21,6 +21,7 @@ recovery_db_id=
 recovery_checker_id=
 recovery_log="$recovery_directory/command.log"
 recovery_command_id=
+recovery_timer_id=
 recovery_cleaning=0
 recovery_start_attempted=0
 
@@ -47,16 +48,28 @@ export RECOVERY_CONTROL_DIRECTORY="$recovery_directory/control"
 export RECOVERY_SECRET_FILE="$recovery_directory/db_password"
 export RECOVERY_DB_CONTAINER_NAME="$recovery_db_name"
 
-# macOS has no built-in timeout(1). Poll only the command handle we just spawned;
-# terminate/reap that client on deadline. No broad process-name or group targeting.
+stop_watchdog() {
+    if [ -n "$recovery_timer_id" ]; then
+        kill -TERM "$recovery_timer_id" 2>/dev/null || true
+        wait "$recovery_timer_id" 2>/dev/null || true
+        recovery_timer_id=
+    fi
+}
+
+# macOS has no built-in timeout(1). The passive timer measures real seconds even
+# when tests accelerate observation sleeps; only this parent signals its children.
 bounded() {
     recovery_seconds=$1
     shift
     "$@" >"$recovery_log" 2>&1 &
     recovery_command_id=$!
-    recovery_ticks=0
+    /bin/sleep "$recovery_seconds" &
+    recovery_timer_id=$!
     while kill -0 "$recovery_command_id" 2>/dev/null; do
-        if [ "$recovery_ticks" -ge "$recovery_seconds" ]; then
+        if ! kill -0 "$recovery_timer_id" 2>/dev/null; then
+            # A finished command's real status wins if both children have exited.
+            kill -0 "$recovery_command_id" 2>/dev/null || break
+            stop_watchdog
             kill -TERM "$recovery_command_id" 2>/dev/null || true
             sleep 1
             kill -KILL "$recovery_command_id" 2>/dev/null || true
@@ -66,8 +79,8 @@ bounded() {
             return 124
         fi
         sleep 1
-        recovery_ticks=$((recovery_ticks + 1))
     done
+    stop_watchdog
     recovery_status=0
     wait "$recovery_command_id" || recovery_status=$?
     recovery_command_id=
@@ -139,6 +152,7 @@ cleanup() {
     trap - EXIT INT TERM
     [ "$recovery_cleaning" -eq 0 ] || exit "$recovery_exit"
     recovery_cleaning=1
+    stop_watchdog
     if [ -n "$recovery_command_id" ]; then
         kill -TERM "$recovery_command_id" 2>/dev/null || true
         sleep 1

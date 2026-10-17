@@ -19,6 +19,10 @@ db_id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 checker_id=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 case "$1" in
     ps)
+        case "${FAKE_PS_MODE:-}" in
+            slow) /bin/sleep 0.6 ;;
+            hang) exec /bin/sleep 10 ;;
+        esac
         case "${FAKE_COLLISION:-}:$*" in
             project:*'--filter label='*) printf 'pre-existing-project-container\n' ;;
             container:*'{{ .Names }}'*) printf '%s_db\n' "$project" ;;
@@ -117,13 +121,14 @@ def run_controller(
     collision: str = "",
     checker_state: str = "running",
     publish_late: bool = False,
+    ps_mode: str = "",
 ) -> tuple[subprocess.CompletedProcess[str], list[str], Path]:
     bin_directory = tmp_path / "bin"
     bin_directory.mkdir()
     fake = bin_directory / "docker"
     fake.write_text(FAKE_DOCKER, encoding="utf-8")
     fake.chmod(0o755)
-    # Accelerate polling without turning bounded loops into scheduling-sensitive spins.
+    # Accelerate observations, not the controller's real command deadlines.
     sleeper = bin_directory / "sleep"
     sleeper.write_text("#!/bin/sh\nexec /bin/sleep 0.05\n", encoding="utf-8")
     sleeper.chmod(0o755)
@@ -142,6 +147,7 @@ def run_controller(
         "FAKE_CHECKER_STATE": checker_state,
         "FAKE_PYTHON": sys.executable,
         "FAKE_PUBLISH_LATE": "1" if publish_late else "0",
+        "FAKE_PS_MODE": ps_mode,
     }
     result = subprocess.run(
         ["sh", str(ROOT / "scripts/test-recovery.sh")],
@@ -174,8 +180,8 @@ def test_recovery_controller_aborts_when_owned_database_guard_fails(
 
 
 def test_recovery_secret_is_readable_inside_a_private_host_directory(tmp_path: Path) -> None:
-    result, _commands, temporary = run_controller(tmp_path)
-    assert result.returncode == 0, result.stderr
+    result, commands, temporary = run_controller(tmp_path)
+    assert result.returncode == 0, (result.stderr, commands)
     modes = json.loads((tmp_path / "state" / "modes.json").read_text())
     assert modes == {"secret": 0o444, "parent": 0o700}
     assert list(temporary.iterdir()) == []
@@ -193,10 +199,31 @@ def test_recovery_controller_reports_checker_exit_before_outage(tmp_path: Path) 
 
 
 def test_recovery_controller_accepts_marker_published_before_observed_exit(tmp_path: Path) -> None:
-    result, _commands, temporary = run_controller(
+    result, commands, temporary = run_controller(
         tmp_path, checker_state="exited", publish_late=True
     )
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 0, (result.stderr, commands)
+    assert list(temporary.iterdir()) == []
+
+
+def test_recovery_command_deadline_is_independent_of_accelerated_polling(tmp_path: Path) -> None:
+    result, commands, temporary = run_controller(
+        tmp_path, checker_state="exited", publish_late=True, ps_mode="slow"
+    )
+    assert result.returncode == 0, (result.stderr, commands)
+    assert any(command.startswith("start ") for command in commands)
+    assert list(temporary.iterdir()) == []
+
+
+def test_recovery_command_deadline_still_stops_an_overdue_owned_client(tmp_path: Path) -> None:
+    result, commands, temporary = run_controller(tmp_path, ps_mode="hang")
+    assert result.returncode != 0
+    assert "recovery Docker command exceeded its deadline" in result.stderr, commands
+    assert not any(
+        " up --detach " in command
+        or command.startswith(("start ", "stop ", "rm ", "volume rm ", "network rm "))
+        for command in commands
+    )
     assert list(temporary.iterdir()) == []
 
 
