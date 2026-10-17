@@ -8,6 +8,11 @@ do not sum them as independent human hours or claim unsupported precision.
 
 All displayed times use Europe/Berlin (UTC+02:00 on these dates).
 
+After WP-3b the candidate reported approximately **2½ hours of cumulative active
+effort** so far, as a rough personal estimate, not independently measured. It covers
+discussion/review/manual work, excluding agent-only execution/waits. It is not a
+total-project-time claim and is not retroactively distributed across intervals.
+
 | Date / observed interval | Activity | Candidate active effort | Agent work | Notes |
 | --- | --- | --- | --- | --- |
 | 2026-10-17, before ledger initialization | Assignment/tooling reconnaissance, brainstorming, fork and architecture discussion | Not yet reported | Duration not measured | Do not invent a retrospective duration; candidate may provide an estimate. |

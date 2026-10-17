@@ -113,6 +113,7 @@ for reconciliation with the candidate first.
 | U-LEARN | Candidate understands material choices, risks and failure behavior | Milestone walkthroughs/teach-back / all packages | Architecture explained in discussion; implementation walkthrough/teach-back pending |
 | U-CUTOFF | Safety target: 2026-10-18 18:00 Europe/Berlin; deadline 21:00 | Final submission checkpoint / WP-4 | Agreed; not a scheduled automation |
 | U-DEMO | Opt-in varied real charging-session examples for visual candidate review, without changing state terms or automatic startup data | Real HTTP/OCPP/API integration, rerun/preservation checks and live browser / WP-1b amendment | make demo-sessions ran twice with seven stable IDs; three real PG/WS tests cover exact results, repeats, unrelated-data preservation and collision/changed-data refusal. All seven detail views and blocked station history observed in live UI |
+| U-READABILITY | Behavior-preserving cohesive code refactors, minimal useful comments and a top-down README/spec/architecture/decision-log reading path | Refactor equivalence/regression checks, independent code/architecture review and candidate walkthrough / WP-R1–WP-R3,WP-4 | Candidate approved backend first, frontend/simulator next, documentation after. Baseline read-only review identifies ownership/transaction/replay order to preserve; no new implementation/test pass claimed yet |
 
 ## Review rule
 

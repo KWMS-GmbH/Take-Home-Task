@@ -5,6 +5,8 @@ WP-1b manually merged as KWMS PR #2 (`4b2db68`) and WP-2 as KWMS PR #3 (`e0b51fc
 2026-10-17. WP-3a manually merged as KWMS PR #4 (`3699be9`). Candidate approved the
 WP-3 split/isolation/retention boundary and explicitly confirmed the WP-3b defaults
 below: separated health/readiness, isolated recovery/load proof and safe manual cleanup.
+WP-3b is manually merged as KWMS PR #5 (`9c66794`). Candidate approved the
+behavior-preserving readability work below before final acceptance.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -85,6 +87,8 @@ the supplied runner's warning/failure count alone.
 | D-33 | Candidate explicitly approved WP-3b health separation: restart health tracks application/listener liveness; dependency readiness is separate. Started apps remain alive during a DB outage and can return temporary errors until recovery. Swarm's one health signal is not dependency-aware traffic routing. |
 | D-34 | Candidate approved isolated volume-backed DB stop/restart, resource-limit checks and a 12-station correctness workload, not a capacity benchmark. Arbitrary network-blackhole recovery remains an explicit limitation; server SQL timeouts are not universal network wall-time guarantees. |
 | D-35 | Candidate approved station-specific cleanup, dry-run by default and explicit apply, batches of 100 superseded replay rows older than seven days. Preserve current/pending generations, sessions, meter evidence and all existing business audit. No global sweep, scheduler or automatic live purge. |
+| D-36 | Candidate approved behavior-preserving readability refactors, first backend then frontend/simulator, with cohesive modules, named responsibilities and minimal helpful why-comments. Preserve public contracts, transaction/ownership/replay/audit ordering and security/resource bounds. Publish independently reviewed PRs; candidate manually merges each before dependent work. Actual bugs require explicit separate findings/fixes and regression evidence, not silent policy changes. |
+| D-37 | Candidate approved a later top-down reader-facing documentation rewrite after refactoring: README entry point, present-tense behavior spec, architecture/workflow/code map and a lightweight architectural/domain decision log. Preserve decision IDs, rationale and actual dates/history; move historical process material off the primary reading path rather than duplicating or deleting authority. |
 
 These are derived choices, not claims that KWMS specified every mechanism.
 
@@ -186,6 +190,37 @@ second session. Passing this remains mandatory even if ordinary UI runs are seri
 - Assignment integrity remains clean; warnings explain the remaining shared-ID side effect.
 
 ## Implementation boundaries and mechanics
+
+### WP-R1 approved readability contract — backend
+
+This is a structural refactor of merged `9c66794`, not a new charging policy.
+The candidate approved independent implementation/review and proactive PR handoff;
+manual merge gates the later simulator and reader-documentation packages.
+
+- Keep `Service` and its public call signatures/error exports stable. Keep its OCPP
+  transaction orchestration explicit; delegate cohesive management/query work to a
+  small composed service sharing the same session factory, not a new pool/service.
+- Separate pure request normalization/identity helpers, station ownership/inbox
+  helpers and meter-packet processing. Use named charging action handlers and
+  explicit dispatch, without plugin registries, repository frameworks or mixins.
+- Preserve validation order/messages and relevant-field hashing; station-first locks;
+  token/stale checks before replay; Start retry before supersession/current permission;
+  replacement flush before insertion; one action-time instant; response deep-copy
+  isolation; validator before inbox/commit; no revalidation of stored exact responses.
+- Rejection audit for stale/conflict/invalid references still commits before the
+  deferred error is raised. Unexpected failures roll back all intended effects.
+  Return only after commit/resource release; no transport I/O inside transactions.
+- Preserve schema, API/OCPP payloads/codes, UI behavior, deployment, dependencies,
+  resource bounds, retry/meter/lifecycle rules and every original assignment file.
+  Existing race/process-death probes must retain their real commit boundaries.
+- Add only useful characterization gaps found by review: mixed meter packets,
+  older/equal connector telemetry and response-mutation isolation. Run focused/full
+  tests, isolated recovery, static/source checks, real redeploy/smoke and independent
+  code/architecture review. No live outage, cleanup apply or new UI feature.
+- A reader should be able to follow a charging call, takeover and retry through
+  clearly named entry points. Function/file length is a diagnostic, not a quota.
+  Full README/spec/history/ADR reorganization belongs to WP-R3 after refactors;
+  this package updates only required contracts, evidence and a short reading route.
 
 ### WP-3b approved scope and concrete implementation contract
 

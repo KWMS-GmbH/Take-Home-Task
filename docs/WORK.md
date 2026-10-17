@@ -144,7 +144,7 @@ case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 Status: candidate approved two PRs, isolated fault tests and conservative retention
 on 2026-10-17 (D-31/D-32). WP-3a manually merged; candidate explicitly approved WP-3b
 defaults (D-33–D-35). Local implementation/verification follows SPEC.md and
-[plan](plans/WP-3b.md); WP-3b current-head CI and manual merge remain.
+[plan](plans/WP-3b.md). Both PRs are manually merged and their reviewed-head CI passes.
 
 - [x] Discuss fencing/takeover and database budget; update spec and persist plan.
 - [x] Stress the delivered connector-uniqueness and charging-lock invariants with
@@ -158,7 +158,7 @@ defaults (D-33–D-35). Local implementation/verification follows SPEC.md and
 - [x] Add isolated charging process/DB-failure recovery proof and repeat normal
   actual backend=3 continuation/all-eight UI smoke. UI is unchanged; final visual
   browser acceptance remains WP-4, not additional Swarm-chaos proof.
-- [ ] Code/architecture review, evidence update and candidate manual PR review.
+- [x] Code/architecture review, evidence update and candidate manual PR review.
 
 Acceptance: all original cases plus U-SCALE work with three replicas. If scope/time requires
 an omission, obtain a visible scope decision and retain it as incomplete in the matrix.
@@ -190,18 +190,20 @@ Branch `codex/reliability-slice`; production application/schema/deployment uncha
 
 ### WP-3b — bounded operation, recovery and safe maintenance
 
-Published as [KWMS PR #5](https://github.com/KWMS-GmbH/Take-Home-Task/pull/5)
-after the local readiness gates passed. Branch `codex/operations-slice`, based on
-manually merged WP-3a `3699be9`; concrete contract and plan persisted. Current-head
-Checks gate ready status before handoff; candidate review/manual merge is still
-required and WP-4 has not started.
+Status: done. Candidate manually merged
+[KWMS PR #5](https://github.com/KWMS-GmbH/Take-Home-Task/pull/5) at 21:50:40
+Europe/Berlin on 2026-10-17, merge `9c6679471e4c6a981f4f95e5cbc1796e2715e3bf`.
+Its tree matches reviewed head `6e90db3`; local main is synchronized.
+[Reviewed-head CI](https://github.com/KWMS-GmbH/Take-Home-Task/actions/runs/39046366814)
+and [merged-main CI](https://github.com/KWMS-GmbH/Take-Home-Task/actions/runs/39064198505)
+pass. Branch `codex/operations-slice`; final acceptance is still WP-4.
 
 CI repair implemented and locally verified after candidate approval: run `39045326042` at `f216a13`
 passed static checks/316 pytest cases, then timed out before recovery's
 `ready_to_stop`. No fault was injected and CI did not reach fresh Swarm deployment.
 The approved fix (`2fa10dc`) addresses test-only Linux secret readability and
 startup/exit diagnostics. The 324-test suite, repeated owned recovery/static gates
-and normal three-task smoke pass; exact-head CI still gates removal of draft status.
+and normal three-task smoke pass; exact-head CI then passed before ready handoff.
 
 Approved defaults, with concrete safeguards in SPEC.md:
 
@@ -229,11 +231,44 @@ Approved defaults, with concrete safeguards in SPEC.md:
 - [x] Full/static/source/recovery/deployment gates and independent reviews; honest evidence.
 - [x] Publish layered KWMS PR; current-head remote checks gate ready status before
   handoff, rather than a permanently green documentation checkbox.
-- [ ] Candidate manually reviews/merges before dependent WP-4 implementation.
+- [x] Candidate manually reviews/merges; tree/source/CI identity confirmed.
+
+## Readability work — approved before final acceptance
+
+Candidate reported charging rules, simulator, connection ownership and backend
+structure as unclear. Approved cohesive module extraction, sparse why-comments,
+preserved behavior, refactoring before reader documentation, and independent review.
+No original requirement or working domain policy is replaced by this cleanup.
+
+### WP-R1 — Backend readability
+
+Status: in progress on `codex/backend-readability`, based on merged `9c66794`.
+Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
+
+- [x] Targeted grilling/approval, baseline risk review, concrete contract and plan.
+- [ ] Separate request/ownership, management/query and meter-packet responsibilities;
+  make the transaction coordinator and named charging handlers easy to follow.
+- [ ] Useful baseline characterization, unchanged original tests and failure boundaries.
+- [ ] Static/full/recovery/redeploy/smoke gates and independent equivalence/readability review.
+- [ ] Publish layered KWMS PR, green exact-head CI and candidate manual merge.
+
+### WP-R2 — Frontend/simulator readability
+
+Approved next scope; waits for WP-R1 manual merge. Separate simulation orchestration,
+API-result interpretation, projection and routes where that improves followability.
+Preserve all user-visible behavior, admission/token/deadline bounds and API-only access.
+Its concrete plan/spec review precedes implementation.
+
+### WP-R3 — Top-down documentation and decision log
+
+Approved after refactoring, not before. README is the front door; focused present-tense
+behavior/architecture workflows link into code and a lightweight decision log retaining
+IDs/rationale/dates. Historical process records remain available outside the main path.
+Candidate walkthrough, concise AI_USAGE and final acceptance still remain WP-4.
 
 ## WP-4 — Independent acceptance and submission
 
-Status: proposed; depends on candidate merge of prior packages.
+Status: proposed; follows approved readability packages and their manual merges.
 
 - [ ] Independently reconcile every original requirement and scenario with actual evidence.
 - [ ] Run clean deployment, growing regression suite, restart/persistence checks and browser QA.
