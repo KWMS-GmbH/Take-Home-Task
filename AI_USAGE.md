@@ -78,4 +78,14 @@ backend before extracting cohesive modules. An independent reviewer checked orde
 copy isolation, transactions and failure-test interception boundaries, finding no
 behavioral defect or blocking issue. Comments explain non-obvious invariants rather
 than narrating statements. Verification evidence is in WORK.md; my review/understanding
-of this new PR remains required, not something the agent can certify.
+of a new PR remains required, not something the agent can certify. I manually merged
+the backend readability PR #6 before authorizing frontend work.
+
+For frontend/simulator readability, Codex ran 11 targeted characterization cases on
+the unchanged code, then separated assembly/routes, clients, report validation,
+playback/snapshots and independent data checks. Static/collection checks caught
+mechanical naming/import extraction errors, including a removed compatibility export;
+these were corrected without changing existing assertions or charging policy.
+Independent review checked security, ordering and failure behavior. Full/static/
+recovery/deployment gates and real positive/denied browser flows pass (WORK.md).
+The top-down documentation/decision-log rewrite remains a separate later package.

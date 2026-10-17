@@ -4,7 +4,7 @@ Interview take-home for KWMS. The original assignment and supplied replay toolin
 remain unchanged in [take-home/](take-home/). Submission deadline: Sunday,
 2026-10-18, 21:00 Europe/Berlin; our safety target is 18:00.
 
-## Current milestone: backend readability review
+## Current milestone: frontend/simulator readability review
 
 Manage station/tag permissions, check real OCPP authorization, run all eight supplied
 scenarios, and inspect their actual API session data through Flask. Protocol and
@@ -16,10 +16,10 @@ WP-3a adds contested-write/process-death proof. WP-3b separates restart health f
 dependency readiness, verifies graceful database recovery and resource bounds, and
 adds safe opt-in maintenance of superseded replay records. Browser behavior is unchanged.
 
-WP-3b is manually merged. The backend readability refactor preserves those behaviors
-while separating request coordination, management queries and charging transitions.
-Frontend/simulator cleanup and the top-down documentation rewrite follow as separate
-reviewed packages.
+WP-3b and backend readability are manually merged. Frontend/simulator cleanup now
+separates Flask assembly/routes, network clients, report validation, fixed playback
+and independent session-data checks without changing behavior. The top-down
+documentation/decision-log rewrite follows as a separate reviewed package.
 
 **Not yet a complete submission:** readability review and independent final
 acceptance remain; WP-4 owns the final requirement/deployment/security walkthrough. The
@@ -214,6 +214,15 @@ for station fencing, [charging](backend/charging.py) for named lifecycle handler
 owns operator/query transactions using the same pool; [audit](backend/audit.py)
 constructs correlated records without committing. This is a code-reading route,
 not an additional deployment layer.
+
+The frontend starts at [create_app](frontend/app.py), which wires configuration,
+clients, route groups and [web protections](frontend/web.py). Follow the
+[simulation route](frontend/simulation_routes.py) into the server-side
+[suite coordinator](frontend/simulation.py), [fixed playback](frontend/scenario_replay.py)
+and [API snapshots](frontend/simulation_api.py). [Independent checks](frontend/scenario_checks.py)
+compare sent evidence with those snapshots; [report validation](frontend/simulation_report.py)
+keeps missing/contradictory data from appearing green. The browser only submits the
+form and displays the report; Python in the frontend container opens the WebSockets.
 
 Exactly three Swarm services: Flask `frontend`, asynchronous `backend` (three replicas),
 and PostgreSQL `db`. Frontend calls the internal HTTP API, never the database. Each

@@ -246,7 +246,7 @@ Status: done. Candidate manually merged
 [KWMS PR #6](https://github.com/KWMS-GmbH/Take-Home-Task/pull/6) at 22:56:03
 Europe/Berlin on 2026-10-17 as `3e3c85400d271bec08d36b4d0cc1f762a3df1d7d`.
 Its tree matches reviewed `689cb28`; reviewed-head CI `39066725682` passed.
-Local main is synchronized; merged-main CI is checked separately.
+Local main is synchronized; merged-main CI `39068801612` also passes.
 Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
 
 - [x] Targeted grilling/approval, baseline risk review, concrete contract and plan.
@@ -259,15 +259,17 @@ Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
 
 ### WP-R2 — Frontend/simulator readability
 
-Status: in progress on `codex/frontend-readability`, based on merged `3e3c854`.
+Status: local verification complete on `codex/frontend-readability`, based on
+merged `3e3c854`; publication/current-head CI and candidate manual merge remain.
 Candidate explicitly authorized frontend/simulator first, documentation afterward.
 Concrete unchanged-behavior contract in SPEC.md; [persisted plan](plans/WP-R2.md).
 
 - [x] Confirm manual prerequisite merge, review boundaries and persist contract/plan.
-- [ ] Baseline characterization, cohesive client/view/route/playback/check extraction.
-- [ ] Focused/full/static/source/recovery/deploy/smoke and live browser QA.
-- [ ] Independent code/architecture/evidence review and proactive layered KWMS PR.
-- [ ] Green exact-head CI, candidate review/manual merge; documentation rewrite waits.
+- [x] Baseline characterization, cohesive client/view/route/playback/check extraction.
+- [x] Focused/full/static/source/recovery/deploy/smoke and live browser QA.
+- [x] Independent code/architecture equivalence/readability review; no blocker.
+- [ ] Final evidence/description review and proactive layered KWMS PR; exact-head CI gates readiness.
+- [ ] Candidate reviews/manually merges; documentation rewrite waits.
 
 ### WP-R3 — Top-down documentation and decision log
 
@@ -637,3 +639,43 @@ commit, findings addressed, and remaining limitations at each gate.
   finds no blocker; fresh-Start versus retry wording clarified. Current-head remote
   CI determines ready status; only the candidate reviews/merges. This publication
   checkpoint does not claim final acceptance or authorize starting WP-R2 beforehand.
+- WP-R1 completion: candidate manually merged PR #6 (`3e3c854`) at 22:56:03
+  Europe/Berlin. Tree matches reviewed `689cb28`; source guard, reviewed-head CI
+  `39066725682` and merged-main CI `39068801612` verified before WP-R2 handoff.
+- WP-R2 contract/plan `f7f647f` preceded code. **11 new characterization cases**
+  passed against the unchanged frontend (0.24s), committed as `42b1270`: HTTP status/
+  empty/JSON/timeout mapping, exact route/method inventory and error-page protections,
+  correlation after exhausted display budget, and release warning retaining denial/
+  evidence. They use mock HTTP plus a real local WebSocket; no new real-PG claim.
+- WP-R2 extraction `5711a0d` / `f5153a2`: explicit Flask assembly and ordinary route
+  registration, shared network contracts, Authorize-only probe, view/report validation,
+  fixed catalog/playback, HTTP snapshots and named ordered independent data checks.
+  No generic framework, extra service, backend rule reuse or template/style change.
+- WP-R2 focused frontend/session/simulation/characterization/runner/data-check group
+  passes. `make check` passes assignment identity/10 guard cases, dependency/config/
+  shell checks, formatting/lint and strict typing of **43 app modules**. Full
+  `make test`: **338 pytest cases pass** (42.91s) plus actual isolated owned-volume
+  PostgreSQL stop/restart. Same three app/pool/listener instances retain exact data,
+  refuse outage mutations and complete/replay the same session once. Their shared
+  OS process is not three-process Swarm chaos; generated resources confirmed removed.
+- WP-R2 normal `./deploy.sh && make smoke` passes after the new frontend image is
+  deployed, preserving existing data/secrets: actual three-task permission/fencing/
+  session continuation, UI/CSRF, all eight UI/API outcomes and denied-run gating.
+  Backend, original files, templates/styles, dependencies and deployment config are
+  byte-identical to the merged baseline. No live outage or cleanup apply.
+- WP-R2 actual browser QA on the redeployed stack: CHECK-CP with CHECK-TAG and
+  CHECK-BLOCKED yields **8/8 protocol and 8/8 session data**, IDs **90–97**. Inspected
+  expanded protocol exchanges and actual detail #90 (10.0 kWh / 3300 s); result
+  summaries show reboot provisional/unknown duration, backwards suspicious/null energy
+  and denied/noneligible charging separately. Blocked primary gives **0/8**, no cases
+  run. Rendered layout inspected; no UI change/bug found. This is observed live QA,
+  not a new checked-in browser test. Reserved DEMO records were not used or changed.
+- WP-R2 independent baseline/final code and architecture review finds no defect or
+  blocker, including endpoints/injections/security, exact probe/client mappings,
+  lease/token/preflight/pacing/snapshot/deadline/finally sequence, correlation before
+  truncation and unchanged check text/order/tri-states. Granularity is defensible,
+  not a file-length quota. Clarified post-deadline versus ordinary snapshot bounds.
+  Static/collection checks caught mechanical extraction naming/boundary/import errors,
+  including an auto-removed SCENARIO_FILES re-export; corrected without weakening
+  tests. No functional fix or charging-policy change was needed. Candidate review,
+  full documentation rewrite and final acceptance remain separate.

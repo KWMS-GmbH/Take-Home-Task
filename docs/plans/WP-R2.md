@@ -23,3 +23,11 @@ Branch: `codex/frontend-readability`. SPEC.md owns the unchanged behavior contra
 
 Any behavioral defect is reported explicitly and separately tested, not silently
 reclassified as a refactor. A material scope/security/domain change needs agreement.
+
+Execution checkpoint: 11 baseline characterization cases passed before extraction.
+Factory/routes, clients/probe, view/report validation, playback/snapshots and ordered
+independent check helpers now have explicit boundaries. Focused/static/source/338-case
+full suite and actual isolated recovery pass, along with normal redeploy/three-task
+smoke and live browser 8/8 plus denied 0/8 and exact session detail. Independent code/
+architecture review finds no blocker or behavior defect. WORK.md records limitations.
+Publication/current-head CI and candidate manual review/merge remain; WP-R3 not started.

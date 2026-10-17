@@ -224,6 +224,14 @@ this package; material discoveries still return for agreement, not silent fixes.
   No live fault injection, purge, new UI feature, dependency, schema or deployed service.
   Full reader/spec/history/decision-log rewrite remains WP-R3 after manual merge.
 
+Implemented with ordinary route registration and unchanged endpoint names. `app.py`
+is the assembly point; bounded clients/probe, dashboard/view validation, report
+validation and web protections have named modules. Fixed catalog/playback, API
+snapshots and ordered independent scenario/session predicates are separate from
+the lease/deadline coordinator. The existing public test imports remain available.
+Baseline characterization, full/static/recovery/deployed/browser evidence is in
+WORK.md; no template, stylesheet, backend, schema, dependency or behavior change.
+
 ### WP-R1 approved readability contract — backend
 
 This is a structural refactor of merged `9c66794`, not a new charging policy.
@@ -740,6 +748,13 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   characterization, full/static/recovery and normal three-replica redeploy/smoke
   pass; independent equivalence/architecture review finds no blocker. Frontend and
   documentation reorganization wait for separate manually merged packages.
+
+- 2026-10-17: Candidate manually merged backend readability PR #6 (`3e3c854`),
+  identical to reviewed `689cb28`, and explicitly authorized frontend/simulator
+  readability before the separate documentation rewrite. WP-R2 keeps existing
+  contracts and ordered evidence checks; baseline characterization, full/static/
+  recovery/deployment and live browser gates pass, with no independent-review blocker.
+  Candidate manual review/merge and final acceptance remain separate gates.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),
