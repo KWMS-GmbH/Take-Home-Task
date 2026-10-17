@@ -1,4 +1,4 @@
-.PHONY: verify-assignment test-assignment-guard check test build deploy demo-data demo-sessions logs teardown smoke
+.PHONY: verify-assignment test-assignment-guard check test test-recovery build deploy demo-data demo-sessions logs teardown smoke
 
 verify-assignment:
 	@./scripts/verify-assignment.sh
@@ -11,6 +11,10 @@ check:
 
 test:
 	@./scripts/test.sh
+	@./scripts/test-recovery.sh
+
+test-recovery:
+	@./scripts/test-recovery.sh
 
 build:
 	@docker build --target backend --tag kwms-backend:local .
