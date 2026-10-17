@@ -109,7 +109,9 @@ Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`
 
 ## WP-2 — Session correctness, audit and scenario experience
 
-Status: locally verified; publication/current-head CI and candidate review pending.
+Status: locally verified and published for candidate review in
+[KWMS PR #3](https://github.com/KWMS-GmbH/Take-Home-Task/pull/3).
+Current-head CI readiness is visible in PR Checks; candidate review/merge is pending.
 Candidate approved D-28–D-30: bounded sequential execution,
 one UI run per station/start spacing and transient reports with durable sessions/
 audit. Concrete contract is in SPEC.md; [plan](plans/WP-2.md) persisted.
@@ -127,7 +129,8 @@ adapter and backend token checks, preserving originals and established retry rul
 - [x] Test authorization gating, repeats and independent API/DB/audit postconditions.
 - [x] Independent code/architecture reviews; findings repaired with regression tests.
 - [x] Static checks, 255-test suite, deployed all-eight smoke and live browser QA.
-- [ ] Publish layered KWMS PR, confirm current-head CI and hand over for review.
+- [x] Publish layered KWMS PR with local verification and review focus; current-head
+  remote checks determine ready status before handoff, not a fixed green checkbox.
 - [ ] Candidate manually reviews and merges; no dependent WP-3 implementation before merge.
 
 Acceptance: scenarios 01–06/08 have correct visible data; required UI fields are present;
@@ -146,7 +149,7 @@ to charging races, crashes, load, retention and operational recovery.
 - [ ] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
   crash before/after commit, reconnect/replay and three-instance startup.
 - [ ] Extend WP-1b's unchanged scenario 07/actual backend=3 continuation proof with
-  injected failures; verify its complete browser scenario experience.
+  injected failures/recovery; extend WP-2's delivered all-eight browser proof.
 - [ ] Code/architecture review, evidence update and candidate manual PR review.
 
 Acceptance: all original cases plus U-SCALE work with three replicas. If scope/time requires
@@ -344,3 +347,9 @@ commit, findings addressed, and remaining limitations at each gate.
   caught incomplete execution marked completed and lost preflight frames on timeout;
   both are repaired with regressions. Final independent review reports no blocker.
   No production authentication, crash/load/retention or complete-submission claim.
+- WP-2 publication: process/spec commits followed by coherent admission (`98192b6`),
+  adapter/data (`8dbc41b`), browser (`60e6024`) and integrated evidence (`492cd98`)
+  commits pushed to canonical KWMS. PR #3 contains the layered review/demo guide.
+  Final documentation review narrowed failure wording and removed stale WP-3 browser
+  scope; source/whitespace checks pass. Current-head remote CI is a separate gate,
+  and only the candidate may merge. No dependent WP-3 implementation started.

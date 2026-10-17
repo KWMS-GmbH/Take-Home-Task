@@ -117,8 +117,9 @@ sessions on either identity; new connections can fence older sockets there.
 The async run has a 20-second execution deadline, including admission, preflight,
 spacing, scenarios and normal API snapshots. It is not a 20-second end-to-end HTTP
 promise: initial form metadata requests and bounded cleanup/partial-data collection
-also take time. Failures retain bounded partial evidence and mark later cases not
-run. Reports exist only in that response, not cookies or a durable report archive;
+also take time. Interrupted execution/deadlines retain bounded partial evidence and
+mark later cases not run; completed cases can show failed/unverified checks while
+execution continues. Reports exist only in that response, not cookies or a durable report archive;
 reloading/reposting can start another run. Committed sessions/audit remain even when
 the report fails or times out. There is no background queue, resume engine or undo.
 
