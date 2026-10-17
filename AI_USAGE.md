@@ -8,8 +8,8 @@ QA. Review agents inspected code and architecture; their account limit interrupt
 the final pass, so subsequent integration/browser fixes were self-reviewed and
 regression-tested. I review and merge the PRs myself. This is an interim account:
 the manually merged charging/session slice adds durable state transitions, API-backed
-session views and an Authorize-only probe. The current scenario slice is awaiting my
-manual PR review; final submission acceptance remains pending.
+session views and an Authorize-only probe. I also manually merged the scenario slice
+as KWMS PR #3; final submission acceptance remains pending.
 
 I corrected Codex's recommendation of one final PR: I will review and manually merge
 several reasonably sized vertical-slice PRs. I also required actual three-backend

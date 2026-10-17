@@ -1,8 +1,8 @@
 # Charging Session Service — living specification
 
 Status: foundation/WP-1a imported with full history into canonical KWMS main;
-WP-1b manually merged as KWMS PR #2 (`4b2db68`), 2026-10-17. Candidate approved WP-2's
-bounded sequential execution, per-station exclusion and transient-report scope.
+WP-1b manually merged as KWMS PR #2 (`4b2db68`) and WP-2 as KWMS PR #3 (`e0b51fc`),
+2026-10-17. WP-3 is in discussion/preparation; unresolved mechanics are not approved.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -412,12 +412,12 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 | --- | --- | --- |
 | Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes now pass through the WP-2 adapter; retention/failure extensions remain. | WP-3 |
 | Q-02 | Resolved: pinned public API/raw filter, malformed-input/output validation and exact extra-field wire/collision coverage for Boot/Authorize plus all four charging actions pass. Broader fuzzing is not claimed. | Closed in WP-2 |
-| Q-03 | D-25–D-27/D-12 are implemented/tested: supersede occupied attempts, reject bad references, retain suspicious evidence, interrupt invalid-time Stops, preserve first admissible completion. All eight adapter/API/DB outcomes and browser result views verified; candidate PR review remains separate. | WP-2 review gate |
+| Q-03 | Resolved: D-25–D-27/D-12 rules and all eight adapter/API/DB outcomes/browser results verified; candidate manually merged WP-2. Later crash/concurrency proof remains Q-04. | Closed in WP-2 |
 | Q-04 | D-21/D-22, initial bounds and explicit/deployed cross-replica continuation are implemented/tested. Extend concurrent-writer/crash/load proof and tune limits in WP-3. | WP-3 |
 | Q-05 | Atomic session audit, bounded/redacted operational logs and exact full-scenario ID/API extraction are implemented/tested. Retention remains; do not promise durable external diagnostic collection. | WP-3 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
-| Q-07 | Resolved implementation: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser scenario experience verified. Candidate manual WP-2 review remains. | WP-2 review gate |
-| Q-08 | D-28–D-30 contract implemented with source integrity, exact correlation, partial/deadline evidence and independent review. Initial demo bounds are not capacity proof. Publication/current-head CI and candidate manual review remain. | WP-2 review gate |
+| Q-07 | Resolved: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser experience verified and manually merged. | Closed in WP-2 |
+| Q-08 | Resolved: D-28–D-30 implemented with source integrity, exact correlation, partial/deadline evidence, independent review, passing reviewed-head CI and candidate manual merge. Initial demo bounds are not capacity proof; Q-04/Q-05 remain. | Closed in WP-2 |
 
 ## Source findings and spec change history
 
@@ -484,6 +484,9 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   separately bounded form lookups/cleanup mean it is not a hard HTML wall-time promise.
   All-eight helper-adapter/API/DB acceptance and live browser results are now verified;
   the original CLI retains its dynamic clock and lacks UI-run admission/spacing.
+- 2026-10-17: Candidate manually merged WP-2 (`e0b51fc`); tree identity with reviewed
+  `8b45a72` and assignment integrity verified. Begin WP-3 grilling, not automatic
+  approval of retention, load targets, failure-injection mechanics or new architecture.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),
