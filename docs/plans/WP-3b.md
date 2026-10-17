@@ -56,5 +56,6 @@ Local gates completed: 39 focused tests, 316 full pytest tests, static/source ch
 two actual isolated volume-backed DB recovery runs, normal current-image three-task
 Swarm redeploy/smoke, and live CLI dry-run (zero selected/deleted). Independent review
 findings were repaired before fault injection; WORK.md owns detailed evidence and
-limits. Publication/current-head CI and candidate manual review/merge remain; no
+limits. [KWMS PR #5](https://github.com/KWMS-GmbH/Take-Home-Task/pull/5) is published;
+current-head CI gates readiness and candidate manual review/merge remains. No
 dependent WP-4 implementation started.

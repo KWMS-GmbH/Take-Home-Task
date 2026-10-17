@@ -190,10 +190,11 @@ Branch `codex/reliability-slice`; production application/schema/deployment uncha
 
 ### WP-3b — bounded operation, recovery and safe maintenance
 
-Local readiness gates passed after explicit candidate approval. Branch
-`codex/operations-slice`, based on manually merged WP-3a `3699be9`; concrete
-contract and plan persisted. Publication/current-head CI and candidate review/merge
-remain separate gates; WP-4 has not started.
+Published as [KWMS PR #5](https://github.com/KWMS-GmbH/Take-Home-Task/pull/5)
+after the local readiness gates passed. Branch `codex/operations-slice`, based on
+manually merged WP-3a `3699be9`; concrete contract and plan persisted. Current-head
+Checks gate ready status before handoff; candidate review/manual merge is still
+required and WP-4 has not started.
 
 Approved defaults, with concrete safeguards in SPEC.md:
 
@@ -219,7 +220,8 @@ Approved defaults, with concrete safeguards in SPEC.md:
 - [x] Real pool/lock/socket bounds and 12-station correctness workload.
 - [x] Safe station-specific dry-run/apply CLI, audit/rollback/concurrency regressions.
 - [x] Full/static/source/recovery/deployment gates and independent reviews; honest evidence.
-- [ ] Layered KWMS PR/current-head CI handoff.
+- [x] Publish layered KWMS PR; current-head remote checks gate ready status before
+  handoff, rather than a permanently green documentation checkbox.
 - [ ] Candidate manually reviews/merges before dependent WP-4 implementation.
 
 ## WP-4 — Independent acceptance and submission
@@ -501,3 +503,11 @@ commit, findings addressed, and remaining limitations at each gate.
   apply/delete-summary atomicity, failure rollback and observed concurrent batches
   pass only against disposable test data. No business TTL, production security,
   network-blackhole deadline, fleet throughput or database/host HA claim.
+- WP-3b publication: approved contract/plan, four coherent implementation/test
+  commits and evidence (`fe8f288`) pushed to KWMS. PR #5 contains the layered
+  outcome/business/technical/decision/risk/evidence/reviewer/interview guide.
+  Independent final description/documentation review found no blocker after
+  correcting stale umbrella/Q-01 underclaims. The PR was opened in draft while
+  exact-head CI runs; source and whitespace guards pass. Current-head Checks
+  determine ready status before handoff; only the candidate may merge. No WP-4
+  implementation, live outage, cleanup apply or production readiness claim.
