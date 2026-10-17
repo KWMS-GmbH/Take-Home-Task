@@ -142,16 +142,16 @@ case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 ## WP-3 — Three-replica reliability and bounded operation
 
 Status: candidate approved two PRs, isolated fault tests and conservative retention
-on 2026-10-17 (D-31/D-32). WP-3a in progress under the concrete SPEC.md contract and
-[persisted plan](plans/WP-3a.md); WP-3b waits for its manual merge. Extend existing foundations
+on 2026-10-17 (D-31/D-32). WP-3a manually merged; WP-3b is in discussion/preparation
+and still needs agreement on its concrete safeguards. Extend existing foundations
 to charging races, crashes, load, retention and operational recovery.
 
 - [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
-- [ ] Stress the delivered connector-uniqueness and charging-lock invariants with
+- [x] Stress the delivered connector-uniqueness and charging-lock invariants with
   explicit concurrent writers across replicas.
 - [ ] Tune existing pool/transport/log and WP-2 simulation bounds; add retention.
 - [ ] Extend serialized-migration/readiness/log checks with dependency-failure recovery proof.
-- [ ] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
+- [x] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
   crash before/after commit, reconnect/replay and three-instance startup.
 - [ ] Extend WP-1b's unchanged scenario 07/actual backend=3 continuation proof with
   injected failures/recovery; extend WP-2's delivered all-eight browser proof.
@@ -168,9 +168,11 @@ concrete safeguards still to be specified. No new deployed service/autoscaling/H
 
 ### WP-3a — charging races and process-crash correctness
 
-Status: locally verified and published in
-[KWMS PR #4](https://github.com/KWMS-GmbH/Take-Home-Task/pull/4).
-Current-head CI is visible in PR Checks; candidate review/manual merge pending.
+Status: done. Candidate manually merged
+[KWMS PR #4](https://github.com/KWMS-GmbH/Take-Home-Task/pull/4) on 2026-10-17 at
+16:36:34 Europe/Berlin, merge `3699be98379bd527b29d4d6ed9b876d0871831a3`.
+Its tree matches reviewed head `1b9c4bf`; local main is synchronized.
+[Reviewed-head CI passed](https://github.com/KWMS-GmbH/Take-Home-Task/actions/runs/39040735481).
 Branch `codex/reliability-slice`; production application/schema/deployment unchanged.
 
 - [x] Candidate approves scope/boundaries; record concrete spec and implementation plan.
@@ -180,12 +182,30 @@ Branch `codex/reliability-slice`; production application/schema/deployment uncha
 - [x] Full regression/static/source gates, actual deployed smoke and independent reviews.
 - [x] Publish layered KWMS PR with actual local gates and review focus; current-head
   remote checks gate ready status before handoff rather than a fixed green checkbox.
-- [ ] Candidate manually reviews/merges before WP-3b implementation.
+- [x] Candidate manually reviews/merges; merge/tree/source identity confirmed
+  before WP-3b preparation.
 
 ### WP-3b — bounded operation, recovery and safe maintenance
 
-Not started. Discuss concrete workload/maintenance safeguards after WP-3a's merge;
-retain the approved boundaries without claiming that load/recovery/retention is proven.
+Discussion/preparation only. No implementation or fault injection yet. Concrete
+workload/maintenance/health safeguards need agreement, spec and persisted plan.
+
+Proposals, **not yet approved**:
+
+- Separate restart health (application/listener liveness) from dependency readiness;
+  retain generic 503/error behavior while DB is unavailable, without treating a shared
+  DB outage as process death. Swarm has one health signal, so document its routing trade-off.
+- Test graceful database stop/restart on an exact owned disposable volume-backed DB,
+  not the existing tmpfs test DB or live stack. Keep app instances running and prove
+  state persistence, failure responses and recovery. Arbitrary network blackholes
+  are not covered by server statement timeouts; do not claim a universal wall-time bound.
+- Add pool/lock/socket bound checks and a 12-station correctness workload, reporting
+  observed timings rather than a throughput SLA. Keep defaults absent contrary evidence.
+- Station-specific maintenance command, dry-run by default, explicit apply, seven-day
+  minimum age by default and 100 replay rows per batch. Lock station first and compare
+  strictly against active generation, preserving current and pending higher generations.
+  Preserve business records/existing audit; add one summary audit per applied batch.
+  No global sweep or scheduled purge; concrete caps/CLI safeguards still need agreement.
 
 ## WP-4 — Independent acceptance and submission
 
@@ -424,3 +444,9 @@ commit, findings addressed, and remaining limitations at each gate.
   review found no actionable inconsistency; original requirement definitions and
   runtime/source trees remain unchanged. Current-head CI and candidate manual merge
   remain separate gates; no WP-3b implementation started.
+- WP-3a completion: GitHub confirms manual merge at `2026-10-17T14:36:34Z`, merge
+  `3699be9`. Its tree matches reviewed `1b9c4bf`, whose CI run `39040735481` passed.
+  Local main fast-forwarded and assignment guard passes. New preparation branch:
+  `codex/operations-slice`. Read-only review identified tmpfs restart-test limits and
+  active-versus-pending-generation cleanup safety. This is not new runtime-test proof
+  or approval of WP-3b's concrete workload, maintenance or health-policy details.

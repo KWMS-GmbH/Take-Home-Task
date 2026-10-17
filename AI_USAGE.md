@@ -51,5 +51,5 @@ The implemented pre-commit hook flushes and reads back domain/audit/inbox SQL st
 the post-commit hook pauses before protocol send. Only an owned child against an
 explicit test database is killed. Three independent pools/services are not presented
 as three separately killed OS processes; the actual deployed three-replica smoke is
-separate evidence. Candidate review/manual merge and later WP-3b/final acceptance
-remain pending.
+separate evidence. I manually reviewed/merged WP-3a as KWMS PR #4; WP-3b and final
+acceptance remain pending.

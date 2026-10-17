@@ -2,8 +2,8 @@
 
 Status: foundation/WP-1a imported with full history into canonical KWMS main;
 WP-1b manually merged as KWMS PR #2 (`4b2db68`) and WP-2 as KWMS PR #3 (`e0b51fc`),
-2026-10-17. Candidate approved the WP-3a/WP-3b split, isolated failure tests and
-conservative retention boundary; WP-3a implements the failure-proof contract below.
+2026-10-17. WP-3a manually merged as KWMS PR #4 (`3699be9`). Candidate approved the
+WP-3 split/isolation/retention boundary; concrete WP-3b safeguards remain in discussion.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -462,8 +462,8 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 | Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes now pass through the WP-2 adapter; retention/failure extensions remain. | WP-3 |
 | Q-02 | Resolved: pinned public API/raw filter, malformed-input/output validation and exact extra-field wire/collision coverage for Boot/Authorize plus all four charging actions pass. Broader fuzzing is not claimed. | Closed in WP-2 |
 | Q-03 | Resolved: D-25–D-27/D-12 rules and all eight adapter/API/DB outcomes/browser results verified; candidate manually merged WP-2. Later crash/concurrency proof remains Q-04. | Closed in WP-2 |
-| Q-04 | D-21/D-22 and explicit/deployed continuation remain verified. WP-3a focused tests now prove controlled charging/permission/Stop races with three independent pools plus actual child-process death before/after commit and survivor retries. Bounded load/dependency recovery and tuning remain WP-3b; candidate WP-3a review/merge is separate. | WP-3a review, WP-3b |
-| Q-05 | Atomic session audit, bounded/redacted operational logs and exact full-scenario ID/API extraction are implemented/tested. Retention remains; do not promise durable external diagnostic collection. | WP-3 |
+| Q-04 | WP-3a controlled charging/permission/Stop races and actual child-process death/retries verified and manually merged. Define bounded workload, dependency recovery/health semantics and actual evidence in WP-3b; no fleet-capacity or network-blackhole guarantee from configured SQL timeouts. | WP-3b |
+| Q-05 | Audit/logging/exact scenario extraction implemented/tested; D-32 approved conservative replay-only cleanup. Decide station-specific dry-run/apply defaults, age/batch bounds and summary auditing before maintenance implementation. Preserve current/pending generations and business data; no external diagnostic-durability promise. | WP-3b |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
 | Q-07 | Resolved: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser experience verified and manually merged. | Closed in WP-2 |
 | Q-08 | Resolved: D-28–D-30 implemented with source integrity, exact correlation, partial/deadline evidence, independent review, passing reviewed-head CI and candidate manual merge. Initial demo bounds are not capacity proof; Q-04/Q-05 remain. | Closed in WP-2 |
@@ -545,6 +545,11 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   domain/audit/inbox writes. Controlled PG blocker observations and real owned-child
   death/reconnect checks pass. The two survivors share the parent OS process;
   do not conflate this with killing three deployed Swarm tasks or HA/capacity proof.
+- 2026-10-17: Candidate manually merged WP-3a (`3699be9`); tree identity with reviewed
+  `1b9c4bf` and original source verified. Begin WP-3b grilling. Read-only review found
+  that the existing tmpfs test DB cannot establish persistence across container
+  stop/restart, and pruning must compare with active (not allocated next) generation.
+  These findings do not approve concrete health/cleanup/load changes by themselves.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),
