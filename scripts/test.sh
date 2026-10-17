@@ -27,4 +27,4 @@ export TEST_DB_PASSWORD_FILE="$test_secret_file"
 docker compose --project-name "$test_project" -f compose.test.yml build tooling
 docker compose --project-name "$test_project" -f compose.test.yml up --detach --wait db
 docker compose --project-name "$test_project" -f compose.test.yml \
-    run --rm --no-deps tooling python -m pytest -q
+    run --rm --no-deps tooling python -m pytest -q "$@"
