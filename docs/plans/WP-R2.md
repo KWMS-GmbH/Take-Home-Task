@@ -30,4 +30,5 @@ independent check helpers now have explicit boundaries. Focused/static/source/33
 full suite and actual isolated recovery pass, along with normal redeploy/three-task
 smoke and live browser 8/8 plus denied 0/8 and exact session detail. Independent code/
 architecture review finds no blocker or behavior defect. WORK.md records limitations.
-Publication/current-head CI and candidate manual review/merge remain; WP-R3 not started.
+Draft PR #7 is published; current-head CI and candidate manual review/merge remain
+gates. WP-R3 has not started.

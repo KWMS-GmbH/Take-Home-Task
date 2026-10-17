@@ -259,8 +259,10 @@ Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
 
 ### WP-R2 — Frontend/simulator readability
 
-Status: local verification complete on `codex/frontend-readability`, based on
-merged `3e3c854`; publication/current-head CI and candidate manual merge remain.
+Status: published in [KWMS PR #7](https://github.com/KWMS-GmbH/Take-Home-Task/pull/7)
+on `codex/frontend-readability`, based on merged `3e3c854`. Local gates pass;
+current-head Checks gate ready status, with pending/failed CI keeping the PR draft.
+Candidate manual review/merge remains; WP-R3 has not started.
 Candidate explicitly authorized frontend/simulator first, documentation afterward.
 Concrete unchanged-behavior contract in SPEC.md; [persisted plan](plans/WP-R2.md).
 
@@ -268,7 +270,7 @@ Concrete unchanged-behavior contract in SPEC.md; [persisted plan](plans/WP-R2.md
 - [x] Baseline characterization, cohesive client/view/route/playback/check extraction.
 - [x] Focused/full/static/source/recovery/deploy/smoke and live browser QA.
 - [x] Independent code/architecture equivalence/readability review; no blocker.
-- [ ] Final evidence/description review and proactive layered KWMS PR; exact-head CI gates readiness.
+- [x] Final evidence/description review and proactive layered KWMS PR; exact-head CI gates readiness.
 - [ ] Candidate reviews/manually merges; documentation rewrite waits.
 
 ### WP-R3 — Top-down documentation and decision log
@@ -679,3 +681,10 @@ commit, findings addressed, and remaining limitations at each gate.
   including an auto-removed SCENARIO_FILES re-export; corrected without weakening
   tests. No functional fix or charging-policy change was needed. Candidate review,
   full documentation rewrite and final acceptance remain separate.
+- WP-R2 publication: coherent contract, characterization, Flask/client/route,
+  simulator/check and evidence commits pushed to KWMS;
+  [PR #7](https://github.com/KWMS-GmbH/Take-Home-Task/pull/7) opened draft. It includes
+  the layered overview, business/technical flow, module map, trade-offs, risks,
+  actual checks and interview/review route. Independent final documentation/
+  description review finds no blocker. Current-head CI controls readiness; candidate
+  alone reviews/merges, and WP-R3 documentation implementation waits for that merge.
