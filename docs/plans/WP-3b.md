@@ -49,3 +49,12 @@ manually merged WP-3a `3699be9`. No original-file edits or extra deployed servic
 
 Planned commits: approved contract/plan; health/readiness; maintenance/tests;
 bounds/workload; isolated recovery tooling; integrated review/evidence/handoff.
+
+## Execution checkpoint
+
+Local gates completed: 39 focused tests, 316 full pytest tests, static/source checks,
+two actual isolated volume-backed DB recovery runs, normal current-image three-task
+Swarm redeploy/smoke, and live CLI dry-run (zero selected/deleted). Independent review
+findings were repaired before fault injection; WORK.md owns detailed evidence and
+limits. Publication/current-head CI and candidate manual review/merge remain; no
+dependent WP-4 implementation started.

@@ -53,3 +53,13 @@ explicit test database is killed. Three independent pools/services are not prese
 as three separately killed OS processes; the actual deployed three-replica smoke is
 separate evidence. I manually reviewed/merged WP-3a as KWMS PR #4; WP-3b and final
 acceptance remain pending.
+
+For WP-3b I approved separate liveness/readiness, isolated graceful DB recovery and
+manual dry-run-first replay maintenance. Codex implemented those changes plus
+resource-bound/workload tests and container-only verification commands. Review caught
+a POSIX shell safety error: a failed guard on the left of `&&` would not necessarily
+abort under `set -e`. Explicit aborts and fake-Docker ownership/collision regressions
+were added before any real outage test. The recovery test then stopped/restarted only
+its generated, label-verified volume-backed DB; no live-stack fault or cleanup apply
+was performed. Three test app instances share one process; normal Swarm smoke is
+separate evidence. Scope excludes HA and arbitrary network-blackhole guarantees.

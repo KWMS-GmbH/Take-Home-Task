@@ -143,19 +143,21 @@ case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 
 Status: candidate approved two PRs, isolated fault tests and conservative retention
 on 2026-10-17 (D-31/D-32). WP-3a manually merged; candidate explicitly approved WP-3b
-defaults (D-33–D-35). Implementation follows SPEC.md and [plan](plans/WP-3b.md).
-Extend existing foundations
-to charging races, crashes, load, retention and operational recovery.
+defaults (D-33–D-35). Local implementation/verification follows SPEC.md and
+[plan](plans/WP-3b.md); WP-3b publication/current-head CI and manual merge remain.
 
-- [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
+- [x] Discuss fencing/takeover and database budget; update spec and persist plan.
 - [x] Stress the delivered connector-uniqueness and charging-lock invariants with
   explicit concurrent writers across replicas.
-- [ ] Tune existing pool/transport/log and WP-2 simulation bounds; add retention.
-- [ ] Extend serialized-migration/readiness/log checks with dependency-failure recovery proof.
+- [x] Review existing pool/transport/log and WP-2 simulation bounds; keep runtime
+  defaults without tuning evidence and add scoped replay maintenance.
+- [x] Extend readiness with isolated dependency-failure/data-recovery proof;
+  existing migration/log checks remain, external durable logs are deferred.
 - [x] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
   crash before/after commit, reconnect/replay and three-instance startup.
-- [ ] Extend WP-1b's unchanged scenario 07/actual backend=3 continuation proof with
-  injected failures/recovery; extend WP-2's delivered all-eight browser proof.
+- [x] Add isolated charging process/DB-failure recovery proof and repeat normal
+  actual backend=3 continuation/all-eight UI smoke. UI is unchanged; final visual
+  browser acceptance remains WP-4, not additional Swarm-chaos proof.
 - [ ] Code/architecture review, evidence update and candidate manual PR review.
 
 Acceptance: all original cases plus U-SCALE work with three replicas. If scope/time requires
@@ -164,8 +166,8 @@ an omission, obtain a visible scope decision and retain it as incomplete in the 
 Approved split: **WP-3a** deterministic race/process-crash correctness, then **WP-3b**
 bounded operation/dependency recovery/maintenance. Failures run only on isolated test
 resources. Preserve sessions, meter evidence/business audit and current-generation
-replay rows; WP-3b may clean only superseded replay rows in bounded batches, with its
-concrete safeguards still to be specified. No new deployed service/autoscaling/HA.
+replay rows; WP-3b cleans only superseded replay rows with the approved fixed-age,
+station-scoped/dry-run/cap safeguards below. No new deployed service/autoscaling/HA.
 
 ### WP-3a — charging races and process-crash correctness
 
@@ -188,8 +190,10 @@ Branch `codex/reliability-slice`; production application/schema/deployment uncha
 
 ### WP-3b — bounded operation, recovery and safe maintenance
 
-In progress after explicit candidate approval. Branch `codex/operations-slice`,
-based on manually merged WP-3a `3699be9`; concrete contract and plan persisted.
+Local readiness gates passed after explicit candidate approval. Branch
+`codex/operations-slice`, based on manually merged WP-3a `3699be9`; concrete
+contract and plan persisted. Publication/current-head CI and candidate review/merge
+remain separate gates; WP-4 has not started.
 
 Approved defaults, with concrete safeguards in SPEC.md:
 
@@ -210,12 +214,13 @@ Approved defaults, with concrete safeguards in SPEC.md:
   invocation, dry-run without writes; deployed verification never applies cleanup.
 
 - [x] Approve scope/defaults; persist contract and implementation plan.
-- [ ] Separate liveness/restart health and dependency readiness; retain deployment readiness gate.
-- [ ] Owned volume-backed DB stop/restart proof with unchanged app instances/data integrity.
-- [ ] Real pool/lock/socket bounds and 12-station correctness workload.
-- [ ] Safe station-specific dry-run/apply CLI, audit/rollback/concurrency regressions.
-- [ ] Full/static/source/recovery/deployment gates and independent reviews; honest evidence.
-- [ ] Layered KWMS PR/current-head CI handoff and candidate manual merge.
+- [x] Separate liveness/restart health and dependency readiness; retain deployment readiness gate.
+- [x] Owned volume-backed DB stop/restart proof with unchanged app instances/data integrity.
+- [x] Real pool/lock/socket bounds and 12-station correctness workload.
+- [x] Safe station-specific dry-run/apply CLI, audit/rollback/concurrency regressions.
+- [x] Full/static/source/recovery/deployment gates and independent reviews; honest evidence.
+- [ ] Layered KWMS PR/current-head CI handoff.
+- [ ] Candidate manually reviews/merges before dependent WP-4 implementation.
 
 ## WP-4 — Independent acceptance and submission
 
@@ -460,3 +465,39 @@ commit, findings addressed, and remaining limitations at each gate.
   `codex/operations-slice`. Read-only review identified tmpfs restart-test limits and
   active-versus-pending-generation cleanup safety. This is not new runtime-test proof
   or approval of WP-3b's concrete workload, maintenance or health-policy details.
+- WP-3b approved D-33–D-35 and persisted the concrete contract/plan before code.
+  Health (`07fe738`), maintenance (`7d87d05`), bounded correctness (`f4d6016`)
+  and owned recovery (`cb296fc`) are separate coherent commits. No dependency,
+  schema migration, charging-policy change or additional deployed service was needed.
+- WP-3b focused gates: 17 maintenance cases, nine resource/health cases, five
+  fake-Docker deployment-policy cases and eight fake-Docker recovery-controller
+  cases passed individually; the final combined repeat passes **39 tests** (14.65s).
+  Its 12-station real-WebSocket correctness workload was observed at **0.322s**,
+  not a capacity target. Actual pool/lock/socket limits, unchanged state on failure,
+  later reuse, exact session data and once-only completions are asserted.
+- WP-3b full gates: `make check` passes source/10 guard cases, dependency checks,
+  Ruff format/lint, strict mypy (25 application modules), shell and all deployment/
+  test configurations. `make test` passes **316 pytest tests** (35.89s), then the
+  separate real recovery checker. The owned volume-backed DB stop/restart checker
+  passed twice (standalone and through `make test`); generated resources were
+  checked for cleanup. Same three app/pool/listener instances and retained socket
+  stay live/unready, reject unavailable mutations, recover exact committed table
+  snapshots and complete/replay the same session once. App instances share one
+  OS process and HTTP uses ASGI; only PostgreSQL is a restarted container.
+- WP-3b deployed gates: normal `./deploy.sh` upgrades the existing Swarm while
+  preserving its secrets/data; all current-image tasks pass separate readiness
+  after completed rollouts. `make smoke` passes against three actual backend tasks,
+  including shared permission/fencing/continuation, all-eight UI/API outcomes and
+  denied-run gating. Live `./scripts/prune-replays.sh --station-id CHECK-CP`
+  reports `dryRun=true`, `selectedCount=0`, `deletedCount=0`. No live cleanup apply
+  or injected outage; existing DEMO-* records are outside the smoke's scope. UI
+  behavior is unchanged and no fresh visual-browser observation is claimed.
+- WP-3b independent code/architecture review caught POSIX `set -e` not aborting
+  a failed guard on the left of `&&`. Explicit aborts plus collision/ownership
+  regressions were added before real fault injection. Deployment also rejects
+  old healthy images, incomplete rollouts and rollback outcomes. Final integrated
+  implementation/documentation review found no remaining blocker. Maintenance
+  preserves active/pending generations and every session/meter/existing audit row;
+  apply/delete-summary atomicity, failure rollback and observed concurrent batches
+  pass only against disposable test data. No business TTL, production security,
+  network-blackhole deadline, fleet throughput or database/host HA claim.

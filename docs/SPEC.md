@@ -537,11 +537,11 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 
 | ID | Decision needed | Owner |
 | --- | --- | --- |
-| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes now pass through the WP-2 adapter; retention/failure extensions remain. | WP-3 |
+| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes pass through the WP-2 adapter; WP-3 adds scoped race/crash/recovery and replay-maintenance proof. Candidate WP-3b review and final reconciliation remain. | WP-3b review, WP-4 |
 | Q-02 | Resolved: pinned public API/raw filter, malformed-input/output validation and exact extra-field wire/collision coverage for Boot/Authorize plus all four charging actions pass. Broader fuzzing is not claimed. | Closed in WP-2 |
 | Q-03 | Resolved: D-25–D-27/D-12 rules and all eight adapter/API/DB outcomes/browser results verified; candidate manually merged WP-2. Later crash/concurrency proof remains Q-04. | Closed in WP-2 |
-| Q-04 | WP-3a controlled charging/permission/Stop races and actual child-process death/retries verified and manually merged. Define bounded workload, dependency recovery/health semantics and actual evidence in WP-3b; no fleet-capacity or network-blackhole guarantee from configured SQL timeouts. | WP-3b |
-| Q-05 | Audit/logging/exact scenario extraction implemented/tested; D-32 approved conservative replay-only cleanup. Decide station-specific dry-run/apply defaults, age/batch bounds and summary auditing before maintenance implementation. Preserve current/pending generations and business data; no external diagnostic-durability promise. | WP-3b |
+| Q-04 | WP-3a merged; D-33/D-34 implemented. WP-3b focused/full/static checks, repeated owned volume-backed graceful DB restart and normal three-task redeploy/smoke pass (WORK.md). Candidate review/current-head CI remain separate. No fleet-capacity, HA or network-blackhole guarantee from configured SQL timeouts. | WP-3b review, WP-4 |
+| Q-05 | D-35 cleanup safeguards implemented: station-specific dry-run/apply, seven-day DB age, cap100 and atomic summary audit. Exclusion/rollback/concurrency/retry and full gates pass; deployed CLI verified dry-run only. Business/current/pending evidence retained. Candidate review/current-head CI pending; no external diagnostic-durability promise. | WP-3b review, WP-4 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
 | Q-07 | Resolved: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser experience verified and manually merged. | Closed in WP-2 |
 | Q-08 | Resolved: D-28–D-30 implemented with source integrity, exact correlation, partial/deadline evidence, independent review, passing reviewed-head CI and candidate manual merge. Initial demo bounds are not capacity proof; Q-04/Q-05 remain. | Closed in WP-2 |
@@ -632,6 +632,16 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   transcript: D-33–D-35 are accepted. Persist concrete WP-3b contract/plan before
   implementation. Recovery uses an owned disposable volume; maintenance remains
   opt-in/dry-run by default and preserves business/current-generation evidence.
+- WP-3b review repaired non-aborting POSIX `&&` ownership guards before fault
+  injection, added explicit fail-closed collision/ownership tests, and prevented old
+  healthy tasks or rolled-back updates from satisfying deployment success. The first
+  owned volume-backed graceful DB recovery run passes with exact prior data and the
+  same app instances/socket; applied cleanup remains confined to disposable test data.
+- WP-3b local gates now pass: 39 focused tests, 316 full pytest tests, static/source
+  checks, two actual isolated recovery runs, normal three-task redeploy/smoke and
+  live maintenance dry-run. No UI policy changed. Independent review found no
+  remaining blocker; current-head CI and candidate manual review/merge still gate
+  completion. Full final acceptance remains WP-4, not inferred from these checks.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),

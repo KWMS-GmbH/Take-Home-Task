@@ -149,6 +149,9 @@ make smoke                     # requires an already deployed stack
 Deploy with `./deploy.sh` after one-time Swarm initialization; `make teardown` removes
 the project stack but preserves its database volume/secrets. CI runs check/test, creates
 a fresh Swarm and deploys/smoke-tests all three backend replicas.
+`make test` includes pytest and a separate owned, disposable volume-backed PostgreSQL
+stop/restart check; `make test-recovery` runs only that gate. Neither injects faults
+into the deployed stack, and cleanup apply is tested only against disposable test data.
 
 The guard itself needs only Git and a POSIX shell. Its 10 regression tests run inside
 `make check`/`make test`; `make test-assignment-guard` is also an optional host-Python
