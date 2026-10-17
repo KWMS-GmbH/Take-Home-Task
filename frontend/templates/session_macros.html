@@ -1,0 +1,17 @@
+{% macro energy(record) -%}
+  {% if record.energyKWh is none %}
+    <span class="unknown-value">Unknown</span>
+  {% else %}
+    {{ record.energyKWh }} kWh
+    {% if record.energyProvisional %}<span class="badge badge-review">Provisional</span>{% endif %}
+  {% endif %}
+{%- endmacro %}
+
+{% macro authorization(record) -%}
+  <span class="badge badge-{{ record.authorizationStatus|lower }}">{{ record.authorizationStatus }}</span>
+  {% if record.authorizationStatus != 'Accepted' %}<small class="unauthorized-note">Not authorized</small>{% endif %}
+{%- endmacro %}
+
+{% macro lifecycle(record) -%}
+  <span class="badge badge-{{ record.lifecycle }}">{{ record.lifecycle|capitalize }}</span>
+{%- endmacro %}

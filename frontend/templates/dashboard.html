@@ -59,6 +59,7 @@
               <span class="resource-icon station-icon" aria-hidden="true">CP</span>
               <span class="resource-copy">
                 <strong>{{ station.id }}</strong>
+                <a class="text-link" href="{{ url_for('sessions', station_id=station.id) }}">View sessions →</a>
                 <small>
                   {% if station.vendor or station.model %}
                     {{ station.vendor or 'Unknown vendor' }} · {{ station.model or 'Unknown model' }}
@@ -179,12 +180,13 @@
   <section class="probe-layout" aria-labelledby="probe-title">
     <div class="probe-intro">
       <p class="eyebrow">Live protocol check</p>
-      <h2 id="probe-title">Ask the station</h2>
+      <h2 id="probe-title">Check charging permission</h2>
       <p>
-        This sends BootNotification and Authorize through the supplied replay helper. The tag may
+        This sends Authorize only over a real OCPP connection. No BootNotification is sent. The tag may
         be known or unknown, so you can verify Accepted, Blocked, and Invalid outcomes.
       </p>
-      <p class="phase-note"><strong>Current scope:</strong> authorization only. Charging scenarios and session results arrive in the next slice.</p>
+      <p class="phase-note"><strong>Shared station ID:</strong> this check supersedes an older connection using the same station ID. Its next valid call is rejected and it must reconnect, even after this probe closes. The check does not interrupt the durable charging session. Use distinct station IDs for independent runs.</p>
+      <p class="phase-note"><strong>Current scope:</strong> session history is available through the Sessions tab. Browser scenario execution arrives in the next slice.</p>
     </div>
 
     <div class="card probe-card">

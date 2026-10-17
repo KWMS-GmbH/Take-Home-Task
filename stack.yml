@@ -15,6 +15,7 @@ services:
       DB_LOCK_TIMEOUT_MS: "1000"
       DB_STATEMENT_TIMEOUT_MS: "3000"
       DB_CONNECT_TIMEOUT_SECONDS: "3"
+      START_RETRY_SECONDS: "${START_RETRY_SECONDS:-86400}"
       HTTP_PORT: "8000"
       OCPP_PORT: "9000"
       INSTANCE_ID: "{{.Service.Name}}.{{.Task.Slot}}.{{.Task.ID}}"

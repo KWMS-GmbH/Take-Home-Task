@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "session_macros.html" as session_ui %}
+
+{% block title %}Sessions{% endblock %}
+
+{% block content %}
+  <section class="hero session-hero">
+    <div>
+      <p class="eyebrow">Durable charging records</p>
+      <h1>What actually happened.</h1>
+      <p class="hero-copy">Reported session times, energy and authorization are read from the backend API—not inferred from a successful protocol response. All times are UTC.</p>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="history-title">
+    <div class="card-heading">
+      <div>
+        <p class="eyebrow">Station history</p>
+        <h2 id="history-title">Sessions{% if selected_station %} · {{ selected_station }}{% endif %}</h2>
+      </div>
+      <p>Latest 100 per station, newest first.</p>
+    </div>
+    <form class="session-filter" method="get" action="{{ url_for('sessions') }}">
+      <div class="field-group">
+        <label for="history-station">Station</label>
+        <select id="history-station" name="station_id" required {{ 'disabled' if not stations }}>
+          <option value="">Choose a station</option>
+          {% for station in stations %}<option value="{{ station.id }}" {{ 'selected' if station.id == selected_station }}>{{ station.id }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" {{ 'disabled' if not stations }}>Show sessions</button>
+    </form>
+
+    {% if sessions %}
+      <div class="table-scroll session-table">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Transaction / connector</th>
+              <th scope="col">ID tag / authorization</th>
+              <th scope="col">Lifecycle / meter quality</th>
+              <th scope="col">Start / stop (UTC)</th>
+              <th scope="col">Duration</th>
+              <th scope="col">Energy</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for session in sessions %}
+              <tr>
+                <th scope="row"><a class="text-link" href="{{ url_for('session_detail', transaction_id=session.transactionId) }}">#{{ session.transactionId }}</a><small>Connector {{ session.connectorId }}</small></th>
+                <td><strong>{{ session.idTag }}</strong><div>{{ session_ui.authorization(session) }}</div></td>
+                <td>{{ session_ui.lifecycle(session) }}<small>Meter: {{ session.meterQuality }}{% if session.reviewReasons %} · review needed{% endif %}</small></td>
+                <td><time>{{ session.startedAt }}</time><small>{% if session.stoppedAt %}<time>{{ session.stoppedAt }}</time>{% else %}Stop unknown{% endif %}</small></td>
+                <td>{% if session.durationSeconds is not none %}{{ session.durationSeconds }} s{% else %}<span class="unknown-value">Unknown</span>{% endif %}</td>
+                <td>{{ session_ui.energy(session) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-panel">
+        {% if selected_station %}
+          <strong>No sessions at {{ selected_station }} yet.</strong>
+          <p>Charging attempts will appear after a StartTransaction is received.</p>
+        {% elif stations %}
+          <strong>Choose a station to inspect its sessions.</strong>
+          <p>Denied attempts and incomplete sessions remain visible alongside completed charges.</p>
+        {% else %}
+          <strong>No stations yet.</strong>
+          <p><a class="text-link" href="{{ url_for('dashboard') }}">Add a station on the access dashboard</a> or connect an OCPP simulator.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}
