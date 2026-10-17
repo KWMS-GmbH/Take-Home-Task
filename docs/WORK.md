@@ -79,12 +79,13 @@ persistence wording. Assignment integrity/tree identity were rechecked for the i
 
 ## WP-1b — Charging/session happy-path vertical slice
 
-Status: published for candidate review/manual merge. Candidate approved D-23–D-27 and the detailed
-[implementation plan](plans/WP-1b.md), including refined retry/time defaults and
-the UI boundary. [KWMS PR #2](https://github.com/KWMS-GmbH/Take-Home-Task/pull/2)
-contains the layered review guide. Local acceptance passes; current-head remote CI
-and draft/ready status are authoritative in that PR. It remains draft while checks
-are pending; candidate manual review/merge is still required before WP-2.
+Status: done. Candidate manually merged
+[KWMS PR #2](https://github.com/KWMS-GmbH/Take-Home-Task/pull/2) on 2026-10-17 at
+14:41:06 Europe/Berlin, merge `4b2db68627d6acc4c6b31d964a967a3d519978dd`.
+Its tree matches reviewed head `461ac24`; local main is synchronized.
+[Reviewed-head CI passed](https://github.com/KWMS-GmbH/Take-Home-Task/actions/runs/39032952561).
+The [implementation plan](plans/WP-1b.md) and PR retain the approved contract and
+layered review guide; the next package still needs its own discussion/spec approval.
 Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`.
 
 - [x] Discuss and approve retry identity, occupied connectors, rejected references,
@@ -103,12 +104,18 @@ Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`
   confirm current-head checks/ready status before the candidate handoff.
 - [x] Candidate-requested opt-in varied demo sessions: real HTTP/OCPP, repeat/refusal
   tests and actual visible browser examples; no new lifecycle/quality or billing policy.
-- [ ] Candidate manually reviews/merges WP-1b before dependent WP-2 work.
+- [x] Candidate manually reviews/merges WP-1b; merge/tree/source identity confirmed
+  before preparing dependent WP-2 work.
 
 ## WP-2 — Session correctness, audit and scenario experience
 
-Status: proposed; depends on candidate merge of WP-1b. Extend its delivered session
+Status: discussion/preparation; WP-1b merge confirmed. Extend its delivered session
 rules and atomic audit with complete supplied-scenario proof and the scenario UI.
+Implementation is not yet approved. Preparation branch: `codex/scenario-slice`.
+Agree bounded execution/admission, same-station run isolation and report lifetime
+before the concrete spec/plan. Source review found that whole-second timestamp
+rendering can alias Start identities across fast successive scenarios; preserve
+originals and retry policy while resolving this in the adapter.
 
 - [ ] Review delivered state/retry/meter rules against the remaining scenarios;
   discuss remaining gaps, update spec and persist implementation plan.
@@ -299,3 +306,8 @@ commit, findings addressed, and remaining limitations at each gate.
   collision and refusal to reset modified examples. Full original-scenario UI remains
   WP-2 and these examples do not replace its acceptance proof. Independent
   code/architecture and documentation review found no remaining actionable issue.
+- WP-1b completion: GitHub confirms candidate manual merge at `2026-10-17T12:41:06Z`,
+  merge `4b2db68`. Its tree matches reviewed head `461ac24`, whose CI run
+  `39032952561` passed. Local main fast-forwarded; `make verify-assignment` passes.
+  New preparation branch `codex/scenario-slice`; no WP-2 application changes or new
+  runtime-test pass are claimed by this merge/source check.

@@ -1,7 +1,8 @@
 # Charging Session Service — living specification
 
 Status: foundation/WP-1a imported with full history into canonical KWMS main;
-WP-1b policies, concrete defaults and implementation plan approved, 2026-10-17.
+WP-1b manually merged as KWMS PR #2 (`4b2db68`), 2026-10-17. WP-2 discussion starts;
+its concrete execution/reporting mechanics are not yet approved.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -116,8 +117,8 @@ or the full scenario UI planned for WP-2.
 
 ### D-23 — Authorization-only probe: approved rationale and caveat
 
-Status: implemented and locally verified in WP-1b; candidate PR review/merge remains
-the gate. This changes the WP-1a UI probe mechanic, not the original assignment or
+Status: implemented, verified and manually merged in WP-1b (KWMS PR #2). This
+changes the WP-1a UI probe mechanic, not the original assignment or
 the backend's Boot behavior. Actual evidence is tracked in WORK.md/REQUIREMENTS.md.
 
 **Why change it:** `take-home/replay.py` lines 296–321 define `authorize()` as a
@@ -342,7 +343,8 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 | Q-04 | D-21/D-22, initial bounds and explicit/deployed cross-replica continuation are implemented/tested. Extend concurrent-writer/crash/load proof and tune limits in WP-3. | WP-3 |
 | Q-05 | Atomic session audit fields and bounded/redacted operational logging with rotation are implemented. Retention and reliable full-scenario result extraction remain; do not promise durable external diagnostic collection. | WP-2, WP-3 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
-| Q-07 | D-23 implemented/verified: Authorize-only UI adapter, unchanged originals, documented ownership caveat, exact active-view preservation and stale-socket rejection. Full scenario browser experience remains WP-2; candidate WP-1b review/merge is still required. | Candidate, WP-2 |
+| Q-07 | D-23 implemented/verified and WP-1b manually merged: Authorize-only UI adapter, unchanged originals, documented ownership caveat, exact active-view preservation and stale-socket rejection. Full scenario browser experience remains WP-2. | WP-2 |
+| Q-08 | WP-2 mechanics need candidate agreement: bounded execution/admission versus background jobs; same-station run isolation and whole-second Start-fingerprint aliasing between supplied scenarios; transient versus durable run reports/partial failures. Existing session/audit durability and original files must be preserved. | Candidate, WP-2 |
 
 ## Source findings and spec change history
 
@@ -393,6 +395,11 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   changes no behavior or original requirement; candidate manual PR review is pending.
 - Future changes must state affected requirement IDs, old/new behavior, rationale,
   candidate agreement for material choices, and changed verification evidence.
+- 2026-10-17: Candidate manually merged WP-1b at `4b2db68`; reviewed tree `461ac24`
+  and original source identity verified. Begin WP-2 discussion, not automatic approval
+  of Q-08 mechanics. Source review found whole-second timestamps shared by several
+  scenarios can collide with D-24/D-27 retry identity; resolve visibly in the adapter,
+  never by editing supplied fixtures or weakening established retry behavior.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),
