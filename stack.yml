@@ -1,0 +1,176 @@
+version: "3.9"
+
+services:
+  backend:
+    image: "${BACKEND_IMAGE:-kwms-backend:local}"
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: charging
+      DB_USER: charging
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_POOL_SIZE: "5"
+      DB_MAX_OVERFLOW: "0"
+      DB_POOL_TIMEOUT_SECONDS: "2"
+      DB_LOCK_TIMEOUT_MS: "1000"
+      DB_STATEMENT_TIMEOUT_MS: "3000"
+      DB_CONNECT_TIMEOUT_SECONDS: "3"
+      HTTP_PORT: "8000"
+      OCPP_PORT: "9000"
+      INSTANCE_ID: "{{.Service.Name}}.{{.Task.Slot}}.{{.Task.ID}}"
+    secrets:
+      - db_password
+    networks:
+      - app
+    ports:
+      - target: 9000
+        published: 9000
+        protocol: tcp
+        mode: ingress
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 15s
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 5s
+        failure_action: rollback
+        monitor: 30s
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        window: 60s
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+        reservations:
+          cpus: "0.10"
+          memory: 128M
+    logging: &bounded-logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+        mode: non-blocking
+        max-buffer-size: 4m
+
+  frontend:
+    image: "${FRONTEND_IMAGE:-kwms-frontend:local}"
+    environment:
+      BACKEND_API_URL: http://backend:8000
+      OCPP_URL: ws://backend:9000/ocpp
+      FRONTEND_SECRET_KEY_FILE: /run/secrets/frontend_secret_key
+    secrets:
+      - frontend_secret_key
+    networks:
+      - app
+    ports:
+      - target: 8000
+        published: 8080
+        protocol: tcp
+        mode: ingress
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    stop_grace_period: 15s
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 5s
+        failure_action: rollback
+        monitor: 30s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        window: 60s
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+    logging: *bounded-logging
+
+  db:
+    image: postgres:17-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826
+    environment:
+      POSTGRES_DB: charging
+      POSTGRES_USER: charging
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - app
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 30s
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        window: 60s
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging: *bounded-logging
+
+networks:
+  app:
+    driver: overlay
+    attachable: true
+
+volumes:
+  db_data:
+
+secrets:
+  db_password:
+    external: true
+    name: "${STACK_NAME:-kwms}_db_password"
+  frontend_secret_key:
+    external: true
+    name: "${STACK_NAME:-kwms}_frontend_secret_key"

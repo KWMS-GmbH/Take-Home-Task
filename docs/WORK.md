@@ -28,29 +28,40 @@ PR: [#1 — Establish project foundation and protect the assignment](https://git
 Acceptance: original files unchanged; drafts distinguish requirements, approved choices,
 open points and evidence; candidate can find how a requirement will be verified.
 
-## WP-1 — Deployable authorization and charging vertical slice
+## WP-1a — Deployable authorization vertical slice
 
-Status: discussion/preparation; discuss/resolve Q-02 before implementation.
-No dependency pins or application code yet. Proposed review granularity: WP-1a
-for deployable station/tag/permission management plus Boot/Authorize, then WP-1b
-for charging/session happy path. Candidate agreement on that split is pending.
+Status: local acceptance verified; preparing proactive PR handoff. Candidate review
+and manual merge remain required. [Persisted plan](plans/WP-1a.md).
+Branch: `codex/authorization-slice`.
 
-- [ ] Create the persisted package plan after targeted design discussion.
-- [ ] Prove OCPP library + raw-input adapter or justify the narrow fallback.
-- [ ] Establish pinned container tooling, database schema/migrations, backend API/OCPP,
-  and minimal Flask station/tag/permission/session screens.
-- [ ] Complete a permitted happy-path charge from simulator/transport through PostgreSQL
-  to browser-visible session data; show rejected authorization clearly.
-- [ ] Deploy the three services with secret, overlay network, volume, health and startup retries.
-- [ ] Add static checks, real-PostgreSQL authorization/happy-path tests and CI baseline.
-- [ ] Code/architecture review, evidence update, candidate walkthrough and manual PR review.
+- [x] Approve split, empty fresh database, one process/two listeners, replica safety now.
+- [x] Prove library public message/schema APIs plus raw-input adapter; pin dependencies.
+- [x] Add management API, migrations, atomic audit/replay, fencing and bounded pools.
+- [x] Add Flask station/tag/permission UI and real Boot/Authorize check, with CSRF.
+- [x] Deploy three service definitions, three backend replicas, secrets/network/volume/health.
+- [x] Static checks, real PostgreSQL/transport tests, actual Swarm smoke and live browser QA.
+- [x] Independent cross-component code/architecture reviews and findings addressed;
+  final integration/browser fixes self-reviewed after review-agent account limit.
+- [x] Document evidence, limitations and review focus; no complete-submission claim.
+- [ ] Publish PR and verify remote CI; hand over for candidate review/walkthrough.
+- [ ] Candidate manually reviews and merges; only then start WP-1b.
 
-Acceptance: working stack, correct station-specific permissions and happy-path session;
-management/API/browser layers agree. This is a milestone, not the final submission.
+Acceptance: station-specific current authorization agrees across UI/API/OCPP/DB and
+three backend instances. Charging/session behavior is deliberately not claimed here.
+
+## WP-1b — Charging/session happy-path vertical slice
+
+Status: queued; depends on candidate manual merge of WP-1a. Discuss scoped session
+semantics, update spec and persist a separate plan before implementation.
+
+- [ ] Status/Start/Meter/Stop handlers, session migrations and API/UI session views.
+- [ ] One permitted complete 10.0 kWh session through unchanged scenario 01 and API.
+- [ ] Denied-start outcome and session authorization snapshot, without false billing claims.
+- [ ] Meaningful session tests, code/architecture review and manual PR review.
 
 ## WP-2 — Session correctness, audit and scenario experience
 
-Status: proposed; depends on candidate merge of WP-1. Resolve Q-01/Q-03 and audit details.
+Status: proposed; depends on candidate merge of WP-1b. Resolve Q-01/Q-03 and audit details.
 
 - [ ] Discuss state transitions, Start retry identity, meter ordering and conflicting data;
   update spec and persist implementation plan.
@@ -66,12 +77,13 @@ case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 
 ## WP-3 — Three-replica reliability and bounded operation
 
-Status: proposed; depends on WP-2. Resolve connection promotion, limits and retention.
+Status: proposed; depends on WP-2. Extend WP-1a's ownership/pool/migration foundations
+to charging races, crashes, load, retention and operational recovery.
 
 - [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
-- [ ] Enforce ownership, connector uniqueness and consistent database lock order across replicas.
-- [ ] Bound pools, waits, message/connection/simulation work and diagnostic log volume.
-- [ ] Serialize migrations, implement dependency failure behavior and log collection/rotation.
+- [ ] Extend verified ownership to connector uniqueness and charging lock order across replicas.
+- [ ] Tune existing pool/transport/log bounds; add simulation limits and retention.
+- [ ] Extend serialized-migration/readiness/log checks with dependency-failure recovery proof.
 - [ ] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
   crash before/after commit, reconnect/replay and three-instance startup.
 - [ ] Complete scenario 07 and prove actual Swarm backend=3 behavior, not just process tests.
@@ -102,7 +114,7 @@ conflict and record the candidate's decision, with remaining requirements incomp
 | Risk | Current treatment / next action |
 | --- | --- |
 | Submission access | KWMS repository last reported READ; no pending invitation found. Candidate contacts KWMS about final submission. Public-fork project PRs are separately authorized and may proceed. |
-| Tooling readiness | Docker Desktop started and Engine 28.3.3 verified on 2026-10-17 (8 CPUs, about 7.65 GiB memory). Swarm is inactive; initialization/deployment verification remains WP-1 work. |
+| Tooling readiness | Docker Desktop/Engine verified; deployment checks used Engine 29.8.2, 8 CPUs and 8,319,770,624 bytes memory. Single-node Swarm initialized; healthy 3/3 backend, 1/1 frontend, 1/1 db observed. Host dependencies beyond Docker/Git/shell/OpenSSL are unnecessary. |
 | Scope/time | User added actual three-replica correctness, audit and browser QA. Keep packages reviewable and record honest omissions/time; six-hour intent still applies. |
 | ID reuse ambiguity | No eternal station/uniqueId key. Start retry identity/retention remains Q-01; repeated Stop is independently safe by transaction ID. |
 | Input compatibility | Library schemas reject arbitrary extras; raw-name collisions require adapter proof before choosing dependencies. |
@@ -138,3 +150,28 @@ commit, findings addressed, and remaining limitations at each gate.
 - WP-1 preparation: Docker Desktop startup completed and `docker info` confirms a
   reachable Engine; no Swarm initialization, image build, dependency installation,
   or application behavior is claimed from this environment check.
+- WP-1a: `make check` passes baseline + 10 guard regression cases, dependency consistency,
+  Ruff format/lint, strict mypy for application modules and Compose/stack configuration.
+  `make test` passes 61 tests against isolated PostgreSQL, including three migration
+  processes, empty initial data, permission changes, atomic rollback/audit/replay,
+  explicit three-listener fencing, malformed/oversize/binary frames and pool exhaustion.
+- WP-1a: `./deploy.sh` brought a fresh single-node Swarm to 3/3 + 1/1 + 1/1 healthy.
+  Repeated deployment retained CHECK-CP/CHECK-TAG and CP-REVIEW/TAG-REVIEW. Inspection
+  confirms only 8080/9000 published, DB image digest pinned, Docker secrets mounted,
+  application images use `app` (UID 10001), and port 9000 `/api/stations` returns 404.
+- WP-1a: `make smoke` passes against all three actual Swarm task addresses; a permission
+  written to one replica affects another, a valid newer socket fences the old one,
+  and the Flask UI executes the unchanged supplied Boot/Authorize helper. `make demo-data`
+  ran twice successfully (existing records reused). Test-only Compose resources cleaned up.
+- WP-1a browser: created CP-REVIEW/TAG-REVIEW through forms; observed Blocked, allowed→Accepted,
+  unknown→Invalid and revoked→Blocked without restart; expanded real exchanged frames.
+  Fixed lost result context; selected station/tag now remain visible. Desktop visual QA
+  completed; this is live observation, not a checked-in browser regression suite.
+- WP-1a security check: pinned tooling `pip-audit --disable-pip --no-deps -r requirements.txt`
+  reported no known vulnerabilities on 2026-10-17. This is not a container OS audit or
+  a guarantee of security. Operational JSON events inspected without raw tags/frames.
+- WP-1a review repairs: corrected async SQLAlchemy extra, secret stdin, immutable image
+  rollout references, unused timeout variables, pool connect/finite bounds, migration
+  logging reset, and misleading connectivity/result context. Remaining: sessions/scenarios,
+  full crash/load proof, retention/pagination, production auth/TLS/backup/least-privilege
+  roles, candidate comprehension review and final upstream submission access.
