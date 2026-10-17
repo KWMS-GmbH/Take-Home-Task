@@ -222,6 +222,15 @@ manual merge gates the later simulator and reader-documentation packages.
   Full README/spec/history/ADR reorganization belongs to WP-R3 after refactors;
   this package updates only required contracts, evidence and a short reading route.
 
+Implemented as direct modules: `request_data` owns pure input normalization;
+`ocpp_requests` owns station fencing/inbox helpers; `charging` names action handlers;
+`metering` processes packet evidence; `audit` constructs correlated records.
+`ManagementService` composes operator/query work with the same session factory.
+`Service` still owns the explicit OCPP transaction. No behavior, schema, public API,
+resource, dependency or deployment contract changes. Three new characterization
+tests passed before extraction; final regression/recovery/deployment evidence and
+review limitations are recorded in WORK.md. Candidate manual review remains required.
+
 ### WP-3b approved scope and concrete implementation contract
 
 **Health and recovery**
@@ -579,11 +588,11 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 
 | ID | Decision needed | Owner |
 | --- | --- | --- |
-| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes pass through the WP-2 adapter; WP-3 adds scoped race/crash/recovery and replay-maintenance proof. Candidate WP-3b review and final reconciliation remain. | WP-3b review, WP-4 |
+| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes pass through the WP-2 adapter; manually merged WP-3 adds scoped race/crash/recovery and replay-maintenance proof. Final requirement reconciliation remains. | WP-4 |
 | Q-02 | Resolved: pinned public API/raw filter, malformed-input/output validation and exact extra-field wire/collision coverage for Boot/Authorize plus all four charging actions pass. Broader fuzzing is not claimed. | Closed in WP-2 |
 | Q-03 | Resolved: D-25–D-27/D-12 rules and all eight adapter/API/DB outcomes/browser results verified; candidate manually merged WP-2. Later crash/concurrency proof remains Q-04. | Closed in WP-2 |
-| Q-04 | WP-3a merged; D-33/D-34 implemented. WP-3b focused/full/static checks, repeated owned volume-backed graceful DB restart and normal three-task redeploy/smoke pass (WORK.md). Candidate review/current-head CI remain separate. No fleet-capacity, HA or network-blackhole guarantee from configured SQL timeouts. | WP-3b review, WP-4 |
-| Q-05 | D-35 cleanup safeguards implemented: station-specific dry-run/apply, seven-day DB age, cap100 and atomic summary audit. Exclusion/rollback/concurrency/retry and full local gates pass; deployed CLI verified dry-run only. Business/current/pending evidence retained. Candidate manual review and final reconciliation remain; current-head Checks determine CI readiness. No external diagnostic-durability promise. | WP-3b review, WP-4 |
+| Q-04 | WP-3a/WP-3b manually merged with passing reviewed-head CI; D-33/D-34 implemented. Focused/full/static checks, repeated owned volume-backed graceful DB restart and normal three-task redeploy/smoke pass (WORK.md). Final acceptance remains. No fleet-capacity, HA or network-blackhole guarantee from configured SQL timeouts. | WP-4 |
+| Q-05 | D-35 cleanup safeguards implemented and manually merged: station-specific dry-run/apply, seven-day DB age, cap100 and atomic summary audit. Exclusion/rollback/concurrency/retry and full gates pass; deployed CLI verified dry-run only. Business/current/pending evidence retained. Final reconciliation remains; no external diagnostic-durability promise. | WP-4 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
 | Q-07 | Resolved: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser experience verified and manually merged. | Closed in WP-2 |
 | Q-08 | Resolved: D-28–D-30 implemented with source integrity, exact correlation, partial/deadline evidence, independent review, passing reviewed-head CI and candidate manual merge. Initial demo bounds are not capacity proof; Q-04/Q-05 remain. | Closed in WP-2 |
@@ -690,6 +699,14 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   two actual isolated recovery runs and normal three-task smoke pass locally.
   Code/architecture impact self-reviewed; no charging or production-secret change.
   Current-head CI and candidate manual review/merge remain separate gates.
+
+- 2026-10-17: Candidate manually merged WP-3b as PR #5 (`9c66794`), identical to
+  reviewed `6e90db3`; reviewed-head and merged-main CI pass. Candidate then approved
+  D-36/D-37 and independent backend-first readability work. WP-R1 extracts cohesive
+  responsibilities without changing policy or original requirements. Baseline
+  characterization, full/static/recovery and normal three-replica redeploy/smoke
+  pass; independent equivalence/architecture review finds no blocker. Frontend and
+  documentation reorganization wait for separate manually merged packages.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),

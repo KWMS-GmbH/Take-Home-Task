@@ -51,8 +51,8 @@ The implemented pre-commit hook flushes and reads back domain/audit/inbox SQL st
 the post-commit hook pauses before protocol send. Only an owned child against an
 explicit test database is killed. Three independent pools/services are not presented
 as three separately killed OS processes; the actual deployed three-replica smoke is
-separate evidence. I manually reviewed/merged WP-3a as KWMS PR #4; WP-3b and final
-acceptance remain pending.
+separate evidence. I manually reviewed/merged WP-3a as KWMS PR #4 and WP-3b as PR #5;
+final acceptance remains pending.
 
 For WP-3b I approved separate liveness/readiness, isolated graceful DB recovery and
 manual dry-run-first replay maintenance. Codex implemented those changes plus
@@ -70,3 +70,12 @@ a runner-owned `0600` Compose file secret and tooling UID 10001; Compose file mo
 do not remap that ownership. I approved a test-only permission fix inside its private
 directory, sanitized startup errors and early checker-exit detection. Added regressions
 cover those boundaries; no production secret or charging policy was changed.
+
+After inspecting the code, I requested a behavior-preserving readability pass,
+backend first, then frontend/simulator, then a top-down documentation rewrite.
+Codex added three PostgreSQL characterization tests and ran them against the unchanged
+backend before extracting cohesive modules. An independent reviewer checked ordering,
+copy isolation, transactions and failure-test interception boundaries, finding no
+behavioral defect or blocking issue. Comments explain non-obvious invariants rather
+than narrating statements. Verification evidence is in WORK.md; my review/understanding
+of this new PR remains required, not something the agent can certify.

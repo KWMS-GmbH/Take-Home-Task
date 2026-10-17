@@ -242,15 +242,17 @@ No original requirement or working domain policy is replaced by this cleanup.
 
 ### WP-R1 — Backend readability
 
-Status: in progress on `codex/backend-readability`, based on merged `9c66794`.
+Status: local verification complete; publication/current-head CI and candidate
+manual review/merge remain. Branch `codex/backend-readability`, based on `9c66794`.
 Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
 
 - [x] Targeted grilling/approval, baseline risk review, concrete contract and plan.
-- [ ] Separate request/ownership, management/query and meter-packet responsibilities;
+- [x] Separate request/ownership, management/query and meter-packet responsibilities;
   make the transaction coordinator and named charging handlers easy to follow.
-- [ ] Useful baseline characterization, unchanged original tests and failure boundaries.
-- [ ] Static/full/recovery/redeploy/smoke gates and independent equivalence/readability review.
-- [ ] Publish layered KWMS PR, green exact-head CI and candidate manual merge.
+- [x] Useful baseline characterization, unchanged original tests and failure boundaries.
+- [x] Static/full/recovery/redeploy/smoke gates and independent equivalence/readability review.
+- [ ] Publish layered KWMS PR; exact-head CI gates ready status before handoff.
+- [ ] Candidate manually reviews/merges; no dependent implementation beforehand.
 
 ### WP-R2 — Frontend/simulator readability
 
@@ -296,7 +298,7 @@ conflict and record the candidate's decision, with remaining requirements incomp
 | Single-node limits | Three backend replicas do not remove the single database/host failure domain. Persistent volume is not a backup. Explain production recovery needs. |
 | Observation gaps | Local diagnostic logs can rotate/disappear; no authenticated operator actor or external durable log collector. Durable business audit is separate. |
 | Candidate comprehension | Explain material choices and demonstrate failure behavior at each gate; no opaque submission. |
-| Authorization probe side effect | D-23 implemented: Authorize-only UI adapter avoids incidental Boot/session interruption; original helper/scenarios stay unchanged. Actual three-replica smoke proves active-session view remains unchanged while old socket is fenced, then completion succeeds on another replica. UI/README show the shared-ID caveat. Broader crash/failure proof remains WP-3. |
+| Authorization probe side effect | D-23 implemented: Authorize-only UI adapter avoids incidental Boot/session interruption; original helper/scenarios stay unchanged. Actual three-replica smoke proves active-session view remains unchanged while old socket is fenced, then completion succeeds on another replica. UI/README show the shared-ID caveat. WP-3's scoped failure proof is merged; final acceptance remains WP-4. |
 
 ## Review evidence
 
@@ -583,3 +585,40 @@ commit, findings addressed, and remaining limitations at each gate.
   Focused regressions pass; no remaining issue found. Prior independent WP-3b
   reviews remain the broader review evidence; no new independent-agent repair
   review is claimed. Candidate manual review/merge and WP-4 still remain.
+- WP-3b completion: candidate manually merged PR #5 as `9c66794` at 21:50:40
+  Europe/Berlin. Tree identity with reviewed `6e90db3`, original-source guard,
+  reviewed-head CI `39046366814` and merged-main CI `39064198505` verified before
+  WP-R1 implementation. Earlier publication/repair entries above are historical.
+- WP-R1 approved contract/plan committed as `62d80cb`. Three meaningful real-PG
+  characterization tests passed against the unchanged backend (0.93s), then were
+  committed as `aa469a2`: mixed meter chronology/deduplication/conflicts, older/equal
+  connector status without session mutation, and validator/caller deep-copy isolation
+  including exact-response replay without revalidation. Existing tests unchanged.
+- WP-R1 runtime extraction `137f150`: stable Service/public signatures and error/
+  validator exports; composed management shares its original bounded session factory;
+  pure request data, station ownership/inbox, audit and meter modules. Named charging
+  handlers preserve SQL/validation/audit/copy/clock/flush ordering. No schema,
+  dependency, API/protocol, UI, deployment, security or policy change.
+- WP-R1 final focused command `./scripts/test.sh tests/test_backend_readability.py
+  tests/test_sessions.py tests/test_backend.py tests/test_charging_races.py
+  tests/test_process_crashes.py tests/test_simulation_admission.py` passes **67 cases**
+  (6.74s). An earlier extraction checkpoint also passed the same 67 cases (6.81s).
+- WP-R1 `make check` passes source identity/10 guard regressions, dependency/config/
+  shell validation, formatting/lint and strict typing of 30 app modules. `make test`
+  passes **327 pytest tests** (43.15s) plus actual isolated owned-volume DB recovery.
+  The same three app/pool/listener instances remain live/unready, refuse outage
+  mutations, retain exact committed data and complete/replay the same session once.
+  Those app instances share one OS process; this is not three-process Swarm chaos.
+  Generated recovery containers/volume/network confirmed removed after success.
+- WP-R1 actual normal `./deploy.sh && make smoke` passes after the changed backend
+  image rolls out: all three actual tasks ready/current, UI/CSRF, shared permissions,
+  ownership/replay, Authorize-only session takeover, cross-replica completion, all
+  eight UI scenario/API outcomes and denied-run gating. Existing data/secrets and
+  reserved DEMO examples preserved. No live failure, cleanup apply or new visual QA.
+- WP-R1 independent baseline/final code and architecture review finds no behavioral
+  defect or blocker. It explicitly checks station-first locks and ownership before
+  replay, deferred audited errors, copy/validation/commit ordering, Start retry/
+  supersession flush, meter query/packet order and crash/contention hook boundaries.
+  Context naming nit resolved. Static checking caught a mechanical extraction syntax
+  typo before focused runtime tests; no functional fix was needed. Full equivalence
+  is not mathematically proved; candidate understanding and WP-4 remain separate.

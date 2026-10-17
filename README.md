@@ -4,7 +4,7 @@ Interview take-home for KWMS. The original assignment and supplied replay toolin
 remain unchanged in [take-home/](take-home/). Submission deadline: Sunday,
 2026-10-18, 21:00 Europe/Berlin; our safety target is 18:00.
 
-## Current milestone: WP-3b bounded operation and recovery
+## Current milestone: backend readability review
 
 Manage station/tag permissions, check real OCPP authorization, run all eight supplied
 scenarios, and inspect their actual API session data through Flask. Protocol and
@@ -16,7 +16,12 @@ WP-3a adds contested-write/process-death proof. WP-3b separates restart health f
 dependency readiness, verifies graceful database recovery and resource bounds, and
 adds safe opt-in maintenance of superseded replay records. Browser behavior is unchanged.
 
-**Not yet a complete submission:** WP-3b candidate review and independent final
+WP-3b is manually merged. The backend readability refactor preserves those behaviors
+while separating request coordination, management queries and charging transitions.
+Frontend/simulator cleanup and the top-down documentation rewrite follow as separate
+reviewed packages.
+
+**Not yet a complete submission:** readability review and independent final
 acceptance remain; WP-4 owns the final requirement/deployment/security walkthrough. The
 [work board](docs/WORK.md) and [requirement matrix](docs/REQUIREMENTS.md) distinguish
 implemented behavior, observed evidence and remaining work.
@@ -200,6 +205,15 @@ suite. CI runs static/PostgreSQL checks, deploys an ephemeral Swarm and runs thi
 test.
 
 ## Architecture and reliability
+
+For the backend code, start with [Service](backend/service.py): it is the public
+entry point and shows the complete OCPP transaction boundary. Follow its calls into
+[request data](backend/request_data.py) for normalization, [ownership and replay](backend/ocpp_requests.py)
+for station fencing, [charging](backend/charging.py) for named lifecycle handlers and
+[metering](backend/metering.py) for sample evidence. [Management](backend/management.py)
+owns operator/query transactions using the same pool; [audit](backend/audit.py)
+constructs correlated records without committing. This is a code-reading route,
+not an additional deployment layer.
 
 Exactly three Swarm services: Flask `frontend`, asynchronous `backend` (three replicas),
 and PostgreSQL `db`. Frontend calls the internal HTTP API, never the database. Each

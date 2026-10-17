@@ -25,3 +25,11 @@ Branch `codex/backend-readability`. SPEC.md owns the unchanged behavior contract
 
 Any discovered behavior defect is a separate explicit finding/fix with regression
 evidence; a material domain/security change returns to candidate approval.
+
+Execution checkpoint: three characterization cases passed on the unchanged backend
+before extraction. Direct cohesive modules and named charging handlers are implemented;
+independent diff/architecture review finds no behavior defect or blocker. Final 67
+focused/327 full tests, source/static gates, actual isolated DB recovery and normal
+three-replica redeploy/smoke pass. WORK.md records scope and limitations. Publication,
+exact-head CI readiness and candidate manual review/merge remain the handoff gates;
+frontend and documentation reorganization have not started.
