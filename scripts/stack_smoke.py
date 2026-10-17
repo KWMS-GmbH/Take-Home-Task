@@ -9,6 +9,8 @@ import html
 import json
 import re
 import socket
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import httpx
 from websockets.asyncio.client import connect
@@ -101,6 +103,99 @@ async def main() -> None:
             base + "/api/stations/CHECK-CP/permissions/CHECK-TAG", json={"enabled": True}
         )
         response.raise_for_status()
+
+        async def call(ws, action, payload):
+            unique_id = uuid4().hex
+            await ws.send(json.dumps([2, unique_id, action, payload]))
+            reply = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
+            assert reply[:2] == [3, unique_id], reply
+            return reply[2]
+
+        now = datetime.now(UTC)
+        async with connect(
+            f"ws://{addresses[0]}:9000/ocpp/CHECK-CP", subprotocols=["ocpp1.6"]
+        ) as station:
+            started = await call(
+                station,
+                "StartTransaction",
+                {
+                    "connectorId": 1,
+                    "idTag": "CHECK-TAG",
+                    "meterStart": 1000,
+                    "timestamp": (now - timedelta(minutes=1)).isoformat(),
+                },
+            )
+            transaction_id = started["transactionId"]
+            assert started["idTagInfo"]["status"] == "Accepted"
+            await call(
+                station,
+                "MeterValues",
+                {
+                    "connectorId": 1,
+                    "transactionId": transaction_id,
+                    "meterValue": [
+                        {
+                            "timestamp": (now - timedelta(seconds=30)).isoformat(),
+                            "sampledValue": [{"value": "3000", "unit": "ignored"}],
+                        }
+                    ],
+                },
+            )
+            url = f"http://{addresses[1]}:8000/api/sessions/{transaction_id}"
+            active = (await http.get(url)).json()
+            assert active["lifecycle"] == "active" and active["energyKWh"] == 2.0
+            # The UI's real Authorize-only socket takes ownership, not session state.
+            page = await http.get("http://frontend:8000/")
+            response = await http.post(
+                "http://frontend:8000/authorization/check",
+                data={
+                    "station_id": "CHECK-CP",
+                    "id_tag": "CHECK-TAG",
+                    "csrf_token": csrf(page.text),
+                },
+            )
+            response.raise_for_status()
+            assert (await http.get(url)).json() == active
+            await station.send(
+                json.dumps(
+                    [
+                        2,
+                        "stale-stop",
+                        "StopTransaction",
+                        {
+                            "transactionId": transaction_id,
+                            "meterStop": 11000,
+                            "timestamp": now.isoformat(),
+                        },
+                    ]
+                )
+            )
+            try:
+                await asyncio.wait_for(station.recv(), timeout=5)
+            except ConnectionClosed as exc:
+                assert exc.rcvd is not None and exc.rcvd.code == 1008
+            else:
+                raise AssertionError("Stale station socket changed a charging session")
+        async with connect(
+            f"ws://{addresses[2]}:9000/ocpp/CHECK-CP", subprotocols=["ocpp1.6"]
+        ) as replacement:
+            stopped = await call(
+                replacement,
+                "StopTransaction",
+                {
+                    "transactionId": transaction_id,
+                    "meterStop": 11000,
+                    "timestamp": now.isoformat(),
+                },
+            )
+            assert stopped == {"idTagInfo": {"status": "Accepted"}}
+        completed = (await http.get(url)).json()
+        assert completed["lifecycle"] == "completed" and completed["energyKWh"] == 10.0
+        assert completed["durationSeconds"] == 60.0
+        listing = await http.get("http://frontend:8000/sessions?station_id=CHECK-CP")
+        detail = await http.get(f"http://frontend:8000/sessions/{transaction_id}")
+        assert listing.status_code == detail.status_code == 200
+        assert str(transaction_id) in listing.text and "10" in detail.text
         page = await http.get("http://frontend:8000/")
         response = await http.post(
             "http://frontend:8000/authorization/check",
@@ -115,7 +210,8 @@ async def main() -> None:
         assert (await http.get("http://frontend:8000/health/ready")).status_code == 200
     print(
         "PASS: three actual replicas, UI/CSRF, shared permissions, "
-        "replay scope, stale fencing, real OCPP probe"
+        "replay scope, stale fencing, Authorize-only session takeover, "
+        "cross-replica completion and API-backed session views"
     )
 
 

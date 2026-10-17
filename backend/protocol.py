@@ -23,6 +23,7 @@ from websockets.http11 import Request, Response
 
 from backend.service import (
     DependencyUnavailable,
+    InvalidTransaction,
     RequestConflict,
     Service,
     StaleConnection,
@@ -39,7 +40,6 @@ FIELDS = {
     "MeterValues": ("connectorId", "transactionId", "meterValue"),
     "StopTransaction": ("transactionId", "meterStop", "timestamp", "reason"),
 }
-SUPPORTED = frozenset({"BootNotification", "Authorize"})
 
 
 class InputError(ValueError):
@@ -109,8 +109,6 @@ def parse_call(raw: str) -> Call:
     action = frame[2]
     if action not in FIELDS:
         raise InputError("NotSupported", "Action outside assignment scope", unique_id)
-    if action not in SUPPORTED:
-        raise InputError("NotImplemented", "Action belongs to a later work package", unique_id)
     payload = filter_payload(action, frame[3])
     try:
         json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -206,6 +204,15 @@ class OcppServer:
                 except RequestConflict:
                     await connection.send(
                         error_frame(call.unique_id, "ProtocolError", "Conflicting request ID reuse")
+                    )
+                    continue
+                except InvalidTransaction:
+                    await connection.send(
+                        error_frame(
+                            call.unique_id,
+                            "PropertyConstraintViolation",
+                            "Invalid transaction reference",
+                        )
                     )
                     continue
                 except ValidationError:

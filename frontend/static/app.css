@@ -782,6 +782,160 @@ summary {
   text-align: center;
 }
 
+.site-nav {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: auto;
+  margin-right: 1rem;
+}
+
+.site-nav a {
+  padding: 0.55rem 0.8rem;
+  color: var(--muted);
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-nav a[aria-current="page"],
+.site-nav a:hover {
+  color: var(--green-dark);
+  background: var(--green-soft);
+}
+
+.text-link {
+  color: var(--green-dark);
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+
+.resource-copy .text-link {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+}
+
+.session-hero h1 {
+  font-size: clamp(2rem, 6vw, 3.8rem);
+  overflow-wrap: anywhere;
+}
+
+.session-filter {
+  display: flex;
+  gap: 0.8rem;
+  align-items: end;
+  max-width: 550px;
+  margin: 1rem 0 1.5rem;
+}
+
+.session-filter .field-group {
+  flex: 1;
+}
+
+.session-filter button {
+  white-space: nowrap;
+}
+
+.session-table table {
+  min-width: 950px;
+}
+
+.session-table td,
+.session-table th {
+  vertical-align: top;
+}
+
+.session-table td small,
+.session-table th small {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.session-table .badge {
+  margin-top: 0.3rem;
+}
+
+.badge-completed {
+  color: var(--green-dark);
+  background: var(--green-soft);
+}
+
+.badge-active {
+  color: #254d85;
+  background: var(--blue-soft);
+}
+
+.badge-interrupted,
+.badge-review {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.unknown-value {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.unauthorized-note {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--red);
+  font-size: 0.75rem;
+}
+
+.session-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.session-facts {
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.session-facts > div {
+  min-width: 0;
+}
+
+.session-facts dt {
+  margin-bottom: 0.3rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.session-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.session-evidence {
+  margin-top: 1.4rem;
+}
+
+.review-note {
+  margin-top: 1rem;
+  padding: 1rem;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-radius: 0.65rem;
+  font-size: 0.85rem;
+}
+
+.review-note ul {
+  margin-bottom: 0;
+  padding-left: 1.2rem;
+}
+
+.meter-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 @media (max-width: 780px) {
   .hero,
   .probe-layout {
@@ -814,12 +968,7 @@ summary {
   }
 
   .phase-pill {
-    font-size: 0;
-  }
-
-  .phase-pill::after {
-    content: "WP-1a";
-    font-size: 0.7rem;
+    display: none;
   }
 
   .onboarding {
@@ -855,6 +1004,21 @@ summary {
 
   .error-state {
     padding: 2rem 1.25rem;
+  }
+
+  .site-nav {
+    gap: 0;
+    margin-right: 0.4rem;
+  }
+
+  .site-nav a {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .session-filter {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

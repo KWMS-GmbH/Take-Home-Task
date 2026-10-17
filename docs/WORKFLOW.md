@@ -27,7 +27,7 @@ details still require discussion in their owning work package before implementat
 5. Update spec change notes, matrix evidence, work status, limitations, AI usage and
    effort records. Explain the resulting behavior and risks to the candidate.
 6. Codex owns the handoff: commit the verified work, push the package branch, open
-   its PR in the authorized fork, and give the candidate the link, concise change
+   its PR in the canonical KWMS repository, and give the candidate the link, concise change
    summary, verification, review focus and remaining risks. Do this proactively;
    routine PR publication does not require another approval request. The candidate
    reviews and merges manually. Wait for that merge before dependent implementation.
@@ -67,10 +67,15 @@ Use independent review agents where useful; they cannot approve decisions for th
   below. Keep the opening short, not the explanation of material behavior and risk.
 - No auto-merge or agent merge. Commits, pushes and PR creation are standing authority
   for agreed work once the readiness gate is met.
-- `origin` is the public `krebsni/Take-Home-Task` fork; `upstream` is KWMS.
-  The candidate authorized publication to the fork on 2026-10-17. Target that fork
-  explicitly for PRs. It remains public if upstream becomes private. Final submission
-  access to KWMS is unresolved and tracked separately; the candidate contacts KWMS.
+- `origin` is now `KWMS-GmbH/Take-Home-Task`; `fork` is the public historical
+  `krebsni/Take-Home-Task` fork. The candidate authorized continuing from KWMS after
+  manually merging integration PR #1 on 2026-10-17 (`2abf0cc`). Both original fork
+  merges/commit identities remain ancestors of KWMS main; do not recreate their PR
+  metadata, delete the historical fork, or rewrite that history.
+- Target `--repo KWMS-GmbH/Take-Home-Task` explicitly for all subsequent work-package
+  PRs. The same proactive publication and candidate-only manual merge gates apply.
+  Access/integration is complete, but final assignment verification/submission remains
+  WP-4. Do not treat importing the authorization milestone as finishing the take-home.
 
 ## PR description contract
 

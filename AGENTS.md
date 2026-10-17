@@ -36,13 +36,15 @@
   technical flows, decisions/trade-offs, risks, open/deferred work, actual evidence
   and a suggested review route. Use `.github/pull_request_template.md` and the PR
   description contract in `docs/WORKFLOW.md`; keep it current as the PR changes.
-- The candidate authorized publishing project work to the public
-  `krebsni/Take-Home-Task` fork on 2026-10-17. For every agreed package, proactively
-  finish checks/reviews, commit, push, open the PR in that fork, and hand over its
+- The candidate authorized fork publication and then moved the canonical project to
+  `KWMS-GmbH/Take-Home-Task` on 2026-10-17 after contributor access and manual
+  integration merge. For every agreed package, proactively finish checks/reviews,
+  commit, push, open the PR in KWMS, and hand over its
   link, verification, review focus and remaining risks. Do not wait for the candidate
   to ask for a PR or ask again for routine publication already authorized.
-- Use an explicit repository target for GitHub commands. Access/final submission
-  to KWMS remains a separate open issue; fork publication does not resolve it.
+- Use `--repo KWMS-GmbH/Take-Home-Task` explicitly for current GitHub work. `origin`
+  is KWMS; `fork` retains the public historical fork and its original review records.
+  Access/integration is resolved; final requirement/submission checks remain WP-4.
 - A package is review-ready after its scoped exit checks pass and the PR is ready
   for review; it is done only after the candidate's manual merge is confirmed.
   Surface any handoff blocker promptly with the exact missing decision/action.

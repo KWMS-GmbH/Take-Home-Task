@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -71,6 +71,27 @@ class PermissionResult(StrictModel):
     stationId: StationId
     idTag: IdTagValue
     enabled: bool
+
+
+class SessionResult(StrictModel):
+    transactionId: int
+    stationId: str
+    connectorId: int
+    idTag: str
+    lifecycle: str
+    authorizationStatus: str
+    meterQuality: str
+    reviewReasons: list[str]
+    startedAt: str
+    stoppedAt: str | None
+    durationSeconds: float | None
+    energyKWh: float | None
+    energyProvisional: bool
+    billingEligible: bool
+    meterStartWh: float
+    meterStopWh: float | None
+    lastMeterWh: float | None
+    lastMeterAt: str | None
 
 
 def _error_status(exc: ServiceError) -> int:
@@ -143,5 +164,19 @@ def create_app(
         station_id: StationId, id_tag: IdTagValue, body: PermissionUpdate
     ) -> dict[str, Any]:
         return await service.set_permission(station_id, id_tag, enabled=body.enabled)
+
+    @app.get("/api/stations/{station_id}/sessions", response_model=list[SessionResult])
+    async def list_sessions(
+        station_id: StationId,
+        limit: Annotated[int, Query(ge=1, le=100)] = 100,
+        before: Annotated[int | None, Query(ge=1, le=2_147_483_647)] = None,
+    ) -> list[dict[str, Any]]:
+        return await service.list_sessions(station_id, limit=limit, before=before)
+
+    @app.get("/api/sessions/{transaction_id}", response_model=SessionResult)
+    async def get_session(
+        transaction_id: Annotated[int, Field(gt=0, le=2_147_483_647)],
+    ) -> dict[str, Any]:
+        return await service.get_session(transaction_id)
 
     return app

@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import math
 import os
 import re
 from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
-from types import ModuleType
 from typing import Any, Protocol
 from urllib.parse import quote
+from uuid import uuid4
 
 import httpx
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
+from websockets.asyncio.client import connect
+from websockets.exceptions import WebSocketException
+from websockets.typing import Subprotocol
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from frontend.logging import configure_logging
@@ -44,6 +49,10 @@ class BackendConflict(RuntimeError):
 
 class BackendRejected(RuntimeError):
     """The backend rejected a management request."""
+
+
+class BackendNotFound(RuntimeError):
+    """A requested station or session does not exist."""
 
 
 class AuthorizationProbeUnavailable(RuntimeError):
@@ -97,6 +106,8 @@ class HttpBackendAPI:
         except (httpx.TimeoutException, httpx.RequestError) as exc:
             raise BackendUnavailable from exc
 
+        if response.status_code == 404:
+            raise BackendNotFound
         if response.status_code == 409:
             raise BackendConflict
         if response.status_code >= 500:
@@ -163,11 +174,8 @@ def _records(value: Any, *, resource: str) -> list[Mapping[str, Any]]:
     return value
 
 
-def _dashboard_data(api: BackendAPI) -> dict[str, Any]:
+def _stations(api: BackendAPI) -> list[dict[str, Any]]:
     stations_raw = _records(api.get("/api/stations"), resource="station")
-    tags_raw = _records(api.get("/api/id-tags"), resource="ID tag")
-    permissions_raw = _records(api.get("/api/permissions"), resource="permission")
-
     stations: list[dict[str, Any]] = []
     for record in stations_raw:
         station_id = record.get("id")
@@ -186,6 +194,13 @@ def _dashboard_data(api: BackendAPI) -> dict[str, Any]:
                 "activeGeneration": active_generation,
             }
         )
+    return sorted(stations, key=lambda item: item["id"])
+
+
+def _dashboard_data(api: BackendAPI) -> dict[str, Any]:
+    stations = _stations(api)
+    tags_raw = _records(api.get("/api/id-tags"), resource="ID tag")
+    permissions_raw = _records(api.get("/api/permissions"), resource="permission")
 
     tags: list[dict[str, str]] = []
     for record in tags_raw:
@@ -207,50 +222,119 @@ def _dashboard_data(api: BackendAPI) -> dict[str, Any]:
             raise BackendUnavailable("Unexpected permission response")
         permissions[(station_id, tag_id)] = enabled
 
-    stations.sort(key=lambda item: item["id"])
     tags.sort(key=lambda item: item["id"])
     return {"stations": stations, "tags": tags, "permissions": permissions}
 
 
-def _load_replay(path: Path) -> ModuleType:
-    """Load the supplied replay helper without writing bytecode beside the source."""
-
-    try:
-        source = path.read_bytes()
-        module = ModuleType("provided_replay")
-        module.__file__ = str(path)
-        exec(compile(source, str(path), "exec"), module.__dict__)
-    except (OSError, SyntaxError, ImportError, SystemExit) as exc:
-        raise AuthorizationProbeUnavailable from exc
-    if not callable(getattr(module, "authorize", None)):
-        raise AuthorizationProbeUnavailable
-    return module
-
-
-def _default_authorizer(replay_path: Path, timeout_seconds: float) -> Authorizer:
-    module: ModuleType | None = None
+def _default_authorizer(timeout_seconds: float) -> Authorizer:
+    """Send one real Authorize, never an incidental Boot/reboot declaration."""
 
     async def authorize(ocpp_url: str, station_id: str, id_tag: str) -> Mapping[str, Any]:
-        nonlocal module
-        if module is None:
-            module = _load_replay(replay_path)
+        frames: list[dict[str, str]] = []
+
+        async def exchange() -> str:
+            message_id = uuid4().hex
+            wire = json.dumps([2, message_id, "Authorize", {"idTag": id_tag}])
+            # The base URL is deployment configuration, never supplied by the browser.
+            # Approved punctuation is legal inside this path component; the OCPP
+            # listener deliberately rejects encoded/ambiguous station paths.
+            endpoint = f"{ocpp_url.rstrip('/')}/{quote(station_id, safe='._:-')}"
+            async with connect(
+                endpoint,
+                subprotocols=[Subprotocol("ocpp1.6")],
+                open_timeout=min(timeout_seconds, 3.0),
+                close_timeout=1.0,
+                max_size=64 * 1024,
+                max_queue=1,
+                compression=None,
+                proxy=None,
+            ) as socket:
+                if socket.subprotocol != "ocpp1.6":
+                    raise AuthorizationProbeUnavailable
+                await socket.send(wire)
+                frames.append({"kind": "send", "conn": "probe", "text": wire})
+                raw = await socket.recv()
+                if not isinstance(raw, str):
+                    raise AuthorizationProbeUnavailable
+                frames.append({"kind": "recv", "conn": "probe", "text": raw})
+                frame = json.loads(raw)
+                if (
+                    not isinstance(frame, list)
+                    or len(frame) != 3
+                    or type(frame[0]) is not int
+                    or frame[0] != 3
+                    or frame[1] != message_id
+                    or not isinstance(frame[2], dict)
+                    or not isinstance(frame[2].get("idTagInfo"), dict)
+                ):
+                    raise AuthorizationProbeUnavailable
+                status = frame[2]["idTagInfo"].get("status")
+                if not isinstance(status, str) or status not in {"Accepted", "Blocked", "Invalid"}:
+                    raise AuthorizationProbeUnavailable
+                return str(status)
+
         try:
-            result = await asyncio.wait_for(
-                module.authorize(
-                    ocpp_url,
-                    station_id,
-                    id_tag,
-                    timeout=min(timeout_seconds, 3.0),
-                ),
-                timeout=timeout_seconds,
-            )
-        except (TimeoutError, OSError) as exc:
-            raise AuthorizationProbeUnavailable from exc
-        if not isinstance(result, Mapping):
-            raise AuthorizationProbeUnavailable
-        return result
+            status = await asyncio.wait_for(exchange(), timeout=timeout_seconds)
+        except (
+            AuthorizationProbeUnavailable,
+            TimeoutError,
+            OSError,
+            ValueError,
+            WebSocketException,
+        ):
+            return {
+                "status": "Unavailable",
+                "error": "The station returned no valid authorization result. Try again shortly.",
+                "frames": frames,
+            }
+        return {"status": status, "error": None, "frames": frames}
 
     return authorize
+
+
+def _session_record(value: Any) -> dict[str, Any]:
+    """Fail safely on a broken internal contract instead of inventing session facts."""
+
+    if not isinstance(value, Mapping):
+        raise BackendUnavailable("Unexpected session response")
+    record = dict(value)
+    for key in ("transactionId", "connectorId"):
+        if type(record.get(key)) is not int or record[key] < 0:
+            raise BackendUnavailable("Unexpected session identifier")
+    for key in ("stationId", "idTag", "startedAt"):
+        if not isinstance(record.get(key), str):
+            raise BackendUnavailable("Unexpected session response")
+    for key, allowed in (
+        ("lifecycle", {"active", "completed", "interrupted"}),
+        ("authorizationStatus", {"Accepted", "Blocked", "Invalid"}),
+        ("meterQuality", {"valid", "unknown", "suspicious"}),
+    ):
+        if not isinstance(record.get(key), str) or record[key] not in allowed:
+            raise BackendUnavailable("Unexpected session status")
+    for key in ("stoppedAt", "lastMeterAt"):
+        if record.get(key) is not None and not isinstance(record[key], str):
+            raise BackendUnavailable("Unexpected session timestamp")
+    for key in (
+        "durationSeconds",
+        "energyKWh",
+        "meterStartWh",
+        "meterStopWh",
+        "lastMeterWh",
+    ):
+        number = record.get(key)
+        if number is not None and (
+            type(number) not in {int, float}
+            or not math.isfinite(number)
+            or (key in {"durationSeconds", "energyKWh"} and number < 0)
+        ):
+            raise BackendUnavailable("Unexpected session measurement")
+    for key in ("energyProvisional", "billingEligible"):
+        if type(record.get(key)) is not bool:
+            raise BackendUnavailable("Unexpected session eligibility")
+    reasons = record.get("reviewReasons")
+    if not isinstance(reasons, list) or not all(isinstance(reason, str) for reason in reasons):
+        raise BackendUnavailable("Unexpected session review reasons")
+    return record
 
 
 def _bounded_text(value: Any, limit: int) -> str:
@@ -307,10 +391,6 @@ def create_app(
             "FRONTEND_SECRET_KEY_FILE",
             "/run/secrets/frontend_secret",
         ),
-        REPLAY_PATH=os.getenv(
-            "REPLAY_PATH",
-            str(Path(__file__).resolve().parents[1] / "provided" / "replay.py"),
-        ),
         AUTHORIZATION_TIMEOUT_SECONDS=10.0,
         MAX_CONTENT_LENGTH=16 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
@@ -324,10 +404,7 @@ def create_app(
 
     CSRFProtect(app)
     api = backend_client or HttpBackendAPI(app.config["BACKEND_API_URL"])
-    probe = authorizer or _default_authorizer(
-        Path(app.config["REPLAY_PATH"]),
-        float(app.config["AUTHORIZATION_TIMEOUT_SECONDS"]),
-    )
+    probe = authorizer or _default_authorizer(float(app.config["AUTHORIZATION_TIMEOUT_SECONDS"]))
     app.extensions["backend_api"] = api
     app.extensions["ocpp_authorizer"] = probe
 
@@ -364,6 +441,38 @@ def create_app(
     @app.get("/dashboard")
     def dashboard() -> Any:
         return render_dashboard()
+
+    @app.get("/sessions")
+    def sessions() -> Any:
+        stations = _stations(api)
+        selected_station = request.args.get("station_id", "")
+        records: list[dict[str, Any]] = []
+        if selected_station:
+            try:
+                selected_station = _station_id(selected_station)
+            except ValueError:
+                raise BackendNotFound from None
+            path = f"/api/stations/{quote(selected_station, safe='')}/sessions"
+            records = [
+                _session_record(item) for item in _records(api.get(path), resource="session")
+            ]
+            if len(records) > 100 or any(item["stationId"] != selected_station for item in records):
+                raise BackendUnavailable("Unexpected station session response")
+        return render_template(
+            "sessions.html",
+            stations=stations,
+            selected_station=selected_station,
+            sessions=records,
+        )
+
+    @app.get("/sessions/<int:transaction_id>")
+    def session_detail(transaction_id: int) -> Any:
+        if not 1 <= transaction_id <= 2_147_483_647:
+            raise BackendNotFound
+        record = _session_record(api.get(f"/api/sessions/{transaction_id}"))
+        if record["transactionId"] != transaction_id:
+            raise BackendUnavailable("Unexpected transaction response")
+        return render_template("session_detail.html", session=record)
 
     @app.post("/stations")
     def create_station() -> Any:
@@ -427,6 +536,8 @@ def create_app(
                 _call_authorizer(probe, app.config["OCPP_URL"], station_id, tag_id)
             )
             result = _normalize_auth_result(raw_result)
+            if result["status"] not in {"Accepted", "Blocked", "Invalid"}:
+                response_status = 503
         except ValueError as exc:
             flash(str(exc), "error")
             return redirect(url_for("dashboard"), code=303)
@@ -463,7 +574,7 @@ def create_app(
     def health_ready() -> Any:
         try:
             status = api.get("/health/ready")
-        except (BackendUnavailable, BackendRejected, BackendConflict):
+        except (BackendUnavailable, BackendRejected, BackendConflict, BackendNotFound):
             return jsonify(status="not_ready"), 503
         if not isinstance(status, Mapping) or status.get("status") not in {"ok", "ready"}:
             return jsonify(status="not_ready"), 503
@@ -479,6 +590,17 @@ def create_app(
                 message="The management service could not be reached. Try again shortly.",
             ),
             503,
+        )
+
+    @app.errorhandler(BackendNotFound)
+    def resource_not_found(_error: BackendNotFound) -> tuple[str, int]:
+        return (
+            render_template(
+                "error.html",
+                title="Record not found",
+                message="This station or transaction does not exist.",
+            ),
+            404,
         )
 
     @app.errorhandler(CSRFError)
