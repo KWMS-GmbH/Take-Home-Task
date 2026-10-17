@@ -232,6 +232,16 @@ the lease/deadline coordinator. The existing public test imports remain availabl
 Baseline characterization, full/static/recovery/deployed/browser evidence is in
 WORK.md; no template, stylesheet, backend, schema, dependency or behavior change.
 
+Candidate later approved a separate test-only CI repair: the fake-Docker controller
+test's accelerated polling must not shrink its real command-watchdog budgets. Preserve
+all ownership/marker guards and production settings, keep exact child cleanup and
+finite test bounds, and prove delayed-valid versus genuinely overdue commands.
+This changes verification mechanics, not frontend or charging behavior; actual
+failure/repair evidence remains separate in WORK.md.
+The controller now tracks a passive `/bin/sleep` watchdog separately from accelerated
+observations. It reaps that child on completion, timeout and trap cleanup; only the
+parent signals its exact command handle. A finished command retains its real status.
+
 ### WP-R1 approved readability contract — backend
 
 This is a structural refactor of merged `9c66794`, not a new charging policy.

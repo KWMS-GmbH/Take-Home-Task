@@ -65,6 +65,11 @@ for reconciliation with the candidate first.
   denied 0/8 and an exact session link pass. Independent review finds no blocker.
   Original fixtures/helpers, backend, templates/styles, dependencies and deployment
   remain unchanged; the full reader/decision-log rewrite and final acceptance remain.
+- WP-R2's separately approved verification-clock repair preserves all command budgets
+  and ownership checks. A delayed-valid regression fails before repair; the repaired
+  startup/controller group passes 18 cases (20.08s) and full pytest passes 340 cases
+  (56.18s). This is test-harness reliability evidence, not a new charging requirement.
+  WORK.md keeps the initial remote failure separate from subsequent gate outcomes.
 
 ## Original requirements
 

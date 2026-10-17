@@ -89,3 +89,11 @@ these were corrected without changing existing assertions or charging policy.
 Independent review checked security, ordering and failure behavior. Full/static/
 recovery/deployment gates and real positive/denied browser flows pass (WORK.md).
 The top-down documentation/decision-log rewrite remains a separate later package.
+
+PR #7 CI exposed a separate recovery-test timing flaw: accelerated poll sleeps also
+shortened the command watchdog. I explicitly approved a verification-only repair.
+Codex first demonstrated the flaw with a delayed-valid mock command, then separated
+the real passive timer from observation polling and added an overdue-command case.
+Independent review found no blocking ownership/cleanup issue. Application deadlines,
+resource guards and charging behavior are unchanged; initial failure and subsequent
+verification are recorded separately in WORK.md, not hidden by an unchanged rerun.

@@ -263,6 +263,13 @@ Status: published in [KWMS PR #7](https://github.com/KWMS-GmbH/Take-Home-Task/pu
 on `codex/frontend-readability`, based on merged `3e3c854`. Local gates pass;
 current-head Checks gate ready status, with pending/failed CI keeping the PR draft.
 Candidate manual review/merge remains; WP-R3 has not started.
+
+Initial CI failure: run `39069933611` passes static checks and **337 pytest cases**,
+then an unchanged fake-controller test fails a synthetic command deadline. Real DB
+recovery/fresh Swarm CI stages were not reached. Candidate approved the test-only
+clock repair in the plan. It is implemented with two regressions; full local and
+exact-head remote verification must pass before readiness, not an unchanged rerun.
+
 Candidate explicitly authorized frontend/simulator first, documentation afterward.
 Concrete unchanged-behavior contract in SPEC.md; [persisted plan](plans/WP-R2.md).
 

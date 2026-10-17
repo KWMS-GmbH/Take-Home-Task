@@ -32,3 +32,29 @@ smoke and live browser 8/8 plus denied 0/8 and exact session detail. Independent
 architecture review finds no blocker or behavior defect. WORK.md records limitations.
 Draft PR #7 is published; current-head CI and candidate manual review/merge remain
 gates. WP-R3 has not started.
+
+## Approved CI-harness repair
+
+Final-head CI `39069933611` passes static checks and 337 pytest cases, but the
+unchanged fake-Docker marker/exit test hits a command deadline. The harness replaces
+each one-second poll sleep with 50ms, so the controller's tick-count watchdog grants
+only about 250ms for a nominal five-second command. The exact CI command is unknown;
+an unchanged local 11-case repeat and a 0.1-CPU diagnostic pass, so no local failure
+reproduction or frontend defect is claimed.
+
+Candidate explicitly approved a test-only timing repair. Separate the verification
+controller's real watchdog clock from accelerated polling, retaining command budgets,
+exact-owned process/resource guards, finite outer test timeout and marker semantics.
+Stop/reap only its owned watchdog/command children. Add a mock command slower than the
+old synthetic budget but below the real limit, plus an actually overdue mock command;
+retain fake command context in assertion failures. Independently review and rerun the
+focused/full/static/actual isolated-recovery gates and exact-head CI before readiness.
+No application policy, production timeout, live outage or deployment setting change.
+
+The 0.6s delayed-valid regression fails against the old tick clock (0.44s total,
+deadline during absence preflight), then passes after repair. The focused startup/
+controller group passes 18 cases (20.08s), including a genuinely overdue owned client
+that aborts before any resource creation/outage. Static/source gates and normal
+three-replica smoke also pass. Independent read-only review finds no blocking timer,
+exit-status or ownership issue. Signal injection and every descendant-process case
+are not established by these tests; full/recovery/exact-head CI gates remain.
