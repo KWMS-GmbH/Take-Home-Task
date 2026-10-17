@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <section class="error-state">
+    <span class="error-code" aria-hidden="true">!</span>
+    <p class="eyebrow">Request not completed</p>
+    <h1>{{ title }}</h1>
+    <p>{{ message }}</p>
+    <a class="primary-button button-link" href="{{ url_for('dashboard') }}">Return to dashboard</a>
+  </section>
+{% endblock %}

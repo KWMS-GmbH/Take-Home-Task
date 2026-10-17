@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Fleet overview</p>
+      <h1>Authorization, without guesswork.</h1>
+      <p class="hero-copy">
+        Register charge points and RFID tags, set station-specific access, then verify the
+        decision over the real OCPP connection.
+      </p>
+    </div>
+    <div class="service-state" aria-label="Backend service status">
+      <span class="status-dot"></span>
+      <span><strong>Management API available</strong><small>Live dashboard data</small></span>
+    </div>
+  </section>
+
+  {% if not stations and not tags %}
+    <section class="onboarding" aria-labelledby="setup-title">
+      <div class="step-number">01</div>
+      <div>
+        <p class="eyebrow">Empty workspace</p>
+        <h2 id="setup-title">Set up your first authorization check</h2>
+        <ol class="setup-steps">
+          <li>Add a station</li>
+          <li>Add an ID tag</li>
+          <li>Allow the tag at the station</li>
+          <li>Check authorization over OCPP</li>
+        </ol>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="section-heading" aria-labelledby="inventory-title">
+    <div>
+      <p class="eyebrow">Inventory</p>
+      <h2 id="inventory-title">Stations and ID tags</h2>
+    </div>
+    <p>{{ stations|length }} station{{ '' if stations|length == 1 else 's' }} · {{ tags|length }} tag{{ '' if tags|length == 1 else 's' }}</p>
+  </section>
+
+  <div class="card-grid inventory-grid">
+    <section class="card" aria-labelledby="stations-title">
+      <div class="card-heading">
+        <div>
+          <p class="eyebrow">Charge points</p>
+          <h3 id="stations-title">Stations</h3>
+        </div>
+        <span class="count">{{ stations|length }}</span>
+      </div>
+
+      {% if stations %}
+        <ul class="resource-list">
+          {% for station in stations %}
+            <li>
+              <span class="resource-icon station-icon" aria-hidden="true">CP</span>
+              <span class="resource-copy">
+                <strong>{{ station.id }}</strong>
+                <small>
+                  {% if station.vendor or station.model %}
+                    {{ station.vendor or 'Unknown vendor' }} · {{ station.model or 'Unknown model' }}
+                  {% else %}
+                    Awaiting first BootNotification
+                  {% endif %}
+                </small>
+              </span>
+              {% if station.activeGeneration > 0 %}
+                <span class="badge badge-accepted">Protocol seen · gen {{ station.activeGeneration }}</span>
+              {% else %}
+                <span class="badge badge-muted">No valid call yet</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-note">No station has connected or been added yet.</p>
+      {% endif %}
+
+      <form class="inline-form" method="post" action="{{ url_for('create_station') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="station-id">Add station</label>
+        <div class="field-action">
+          <input id="station-id" name="station_id" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._:-]*" placeholder="CP-001" autocomplete="off" required>
+          <button type="submit">Add</button>
+        </div>
+        <small>Up to 64 approved identifier characters.</small>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="tags-title">
+      <div class="card-heading">
+        <div>
+          <p class="eyebrow">Driver tokens</p>
+          <h3 id="tags-title">ID tags</h3>
+        </div>
+        <span class="count">{{ tags|length }}</span>
+      </div>
+
+      {% if tags %}
+        <ul class="resource-list">
+          {% for tag in tags %}
+            <li>
+              <span class="resource-icon tag-icon" aria-hidden="true">RF</span>
+              <span class="resource-copy"><strong>{{ tag.id }}</strong><small>RFID credential</small></span>
+              <span class="badge badge-muted">Known</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-note">No ID tags have been registered yet.</p>
+      {% endif %}
+
+      <form class="inline-form" method="post" action="{{ url_for('create_id_tag') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="id-tag">Add ID tag</label>
+        <div class="field-action">
+          <input id="id-tag" name="id_tag" maxlength="20" pattern="[A-Za-z0-9][A-Za-z0-9._:-]*" placeholder="TAG-42" autocomplete="off" required>
+          <button type="submit">Add</button>
+        </div>
+        <small>Up to 20 approved identifier characters.</small>
+      </form>
+    </section>
+  </div>
+
+  <section class="card permissions-card" aria-labelledby="permissions-title">
+    <div class="card-heading permission-heading">
+      <div>
+        <p class="eyebrow">Access policy</p>
+        <h2 id="permissions-title">Permission matrix</h2>
+      </div>
+      <p>Changes apply to the next Authorize or StartTransaction request.</p>
+    </div>
+
+    {% if stations and tags %}
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">ID tag</th>
+              {% for station in stations %}
+                <th scope="col">{{ station.id }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for tag in tags %}
+              <tr>
+                <th scope="row">{{ tag.id }}</th>
+                {% for station in stations %}
+                  {% set enabled = permissions.get((station.id, tag.id), false) %}
+                  <td>
+                    <form method="post" action="{{ url_for('set_permission') }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="station_id" value="{{ station.id }}">
+                      <input type="hidden" name="id_tag" value="{{ tag.id }}">
+                      <input type="hidden" name="enabled" value="{{ 'false' if enabled else 'true' }}">
+                      <button class="permission-toggle {{ 'is-allowed' if enabled else 'is-blocked' }}" type="submit" aria-label="{{ 'Block' if enabled else 'Allow' }} {{ tag.id }} at {{ station.id }}">
+                        <span aria-hidden="true"></span>{{ 'Allowed' if enabled else 'Blocked' }}
+                      </button>
+                    </form>
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-panel">
+        <strong>The matrix needs both sides.</strong>
+        <p>Add at least one station and one ID tag to configure access.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="probe-layout" aria-labelledby="probe-title">
+    <div class="probe-intro">
+      <p class="eyebrow">Live protocol check</p>
+      <h2 id="probe-title">Ask the station</h2>
+      <p>
+        This sends BootNotification and Authorize through the supplied replay helper. The tag may
+        be known or unknown, so you can verify Accepted, Blocked, and Invalid outcomes.
+      </p>
+      <p class="phase-note"><strong>Current scope:</strong> authorization only. Charging scenarios and session results arrive in the next slice.</p>
+    </div>
+
+    <div class="card probe-card">
+      <form method="post" action="{{ url_for('check_authorization') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field-group">
+          <label for="probe-station">Station</label>
+          <select id="probe-station" name="station_id" required {{ 'disabled' if not stations }}>
+            {% if not stations %}<option value="">Add a station first</option>{% endif %}
+            {% for station in stations %}<option value="{{ station.id }}" {{ 'selected' if station.id == selected_station }}>{{ station.id }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="probe-tag">ID tag</label>
+          <input id="probe-tag" name="id_tag" value="{{ selected_tag }}" list="known-tags" maxlength="20" pattern="[A-Za-z0-9][A-Za-z0-9._:-]*" placeholder="TAG-42 or an unknown tag" autocomplete="off" required {{ 'disabled' if not stations }}>
+          <datalist id="known-tags">
+            {% for tag in tags %}<option value="{{ tag.id }}">{% endfor %}
+          </datalist>
+        </div>
+        <button class="primary-button" type="submit" {{ 'disabled' if not stations }}>Check authorization</button>
+      </form>
+
+      {% if authorization_result %}
+        {% set status = authorization_result.status %}
+        {% set tone = status|lower if status in ['Accepted', 'Blocked', 'Invalid'] else 'unavailable' %}
+        <div class="probe-result" aria-live="polite">
+          <span class="result-label">Authorization result</span>
+          <p>{{ selected_tag }} at {{ selected_station }}</p>
+          <div class="result-line">
+            <span class="result-symbol" aria-hidden="true">{{ '✓' if status == 'Accepted' else '!' }}</span>
+            <strong class="badge badge-{{ tone }}">{{ status }}</strong>
+          </div>
+          {% if authorization_result.error %}<p class="result-error">{{ authorization_result.error }}</p>{% endif %}
+          {% if authorization_result.frames %}
+            <details>
+              <summary>Protocol exchange · {{ authorization_result.frames|length }} events</summary>
+              <ol class="frame-list">
+                {% for frame in authorization_result.frames %}
+                  <li class="frame-{{ frame.kind }}">
+                    <span>{{ frame.kind }}{% if frame.conn %} · {{ frame.conn }}{% endif %}</span>
+                    <code>{{ frame.text }}</code>
+                  </li>
+                {% endfor %}
+              </ol>
+            </details>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}
