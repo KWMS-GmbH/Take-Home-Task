@@ -94,8 +94,9 @@ values must be visibly distinct from zero or confirmed facts.
 
 ### D-23 — Authorization-only probe: approved rationale and caveat
 
-Status: approved design, not yet implemented or runtime-verified. This changes the
-WP-1a UI probe mechanic, not the original assignment or the backend's Boot behavior.
+Status: implemented and locally verified in WP-1b; candidate PR review/merge remains
+the gate. This changes the WP-1a UI probe mechanic, not the original assignment or
+the backend's Boot behavior. Actual evidence is tracked in WORK.md/REQUIREMENTS.md.
 
 **Why change it:** `take-home/replay.py` lines 296–321 define `authorize()` as a
 real station connection that sends Boot and then Authorize. Under D-07, a fresh Boot
@@ -151,7 +152,7 @@ second session. Passing this remains mandatory even if ordinary UI runs are seri
 - Unchanged scenario 07 proves its API/DB postconditions, not merely protocol success.
 - Assignment integrity remains clean; warnings explain the remaining shared-ID side effect.
 
-## Proposed mechanics — review within the owning work package
+## Implementation boundaries and mechanics
 
 ### WP-1b approved implementation contract
 
@@ -212,10 +213,16 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 - Keep out-of-order/duplicate meter samples as evidence without moving a trustworthy
   latest-reading summary backward in event time or meter value. Flag inconsistent
   evidence rather than using arrival order to rewrite the physical history.
+  Compare against the start baseline and indexed chronological neighbours, not just
+  the latest reading. A conflicting value at the same instant preserves the first
+  trustworthy summary and records a review reason. Completed summaries stay fixed;
+  subsequent meter evidence/review observations are retained separately in audit.
 - A Stop with a backwards end meter can complete the attempt when its time is
   admissible, but energy is unknown and marked suspicious, never negative/zero by
   correction. A repeated Stop cannot overwrite an established completion; audit
   meaningful disagreement and preserve the original result/energy effect.
+  A Stop earlier than an already observed meter sample, or lower than a preceding
+  trustworthy sample, is also suspicious rather than normal billing-eligible data.
   There is one completion/domain-stop event; duplicate/conflict audit entries are
   diagnostics, not additional completion events or repeated energy effects.
 - Time policy: a structurally valid Stop before the session's start is
@@ -239,6 +246,13 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 - Test these minimum integrity rules now, including cross-replica session access and
   takeover without lifecycle change. Broader crash/load/retention and all-scenario
   proof still belong to WP-2/WP-3 and stay visibly incomplete in the matrix.
+- Implementation resource details: session list API returns at most 100, newest first,
+  with a positive bounded `before` cursor; UI currently displays the latest 100.
+  Meter storage is Numeric(30,6), finite magnitude below 1e24 Wh and no silent rounding;
+  invalid string evidence is retained, while unsupported Start/Stop counter precision
+  is rejected before database work. JSON numbers are presentation, not settlement
+  precision. Retry configuration is 1–604800 seconds, default 86400, independently
+  of active exact-match protection, transaction references and Stop idempotency.
 
 ### WP-1a accepted boundary
 
@@ -281,6 +295,8 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 - Implement the approved Authorize-only UI probe and its explicit connection caveat
   from D-23. Preserve original tooling and deliberate scenario Boot behavior. This
   decision alone does not close the other WP-1b session semantics or approve its full plan.
+  D-27 subsequently approved the full WP-1b plan; implementation status/evidence is
+  separate from that original approval history.
 - PostgreSQL connection generations/fencing, row locks and a partial unique index
   enforce ownership and connector invariants. Define takeover at a validated
   connection boundary without adding a mandatory Boot-first sequence to the brief.
@@ -347,6 +363,10 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 - 2026-10-17: Candidate explicitly approved the refined retry and invalid-time Stop
   defaults and the plan (D-27). WP-1b implementation may proceed within that contract;
   full scenario UI and production features remain outside this slice.
+- WP-1b verification/review repaired empty-tag identity incompatibility, Decimal
+  context rounding/overflow, historical meter inversions, post-completion summary
+  mutation and invalid frontend-ID error classification. Added focused regressions;
+  resource/presentation bounds and first-completion behavior are documented above.
 - Future changes must state affected requirement IDs, old/new behavior, rationale,
   candidate agreement for material choices, and changed verification evidence.
 

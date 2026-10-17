@@ -81,7 +81,8 @@ persistence wording. Assignment integrity/tree identity were rechecked for the i
 
 Status: in progress. Candidate approved D-23–D-27 and the detailed
 [implementation plan](plans/WP-1b.md), including refined retry/time defaults and
-the UI boundary. Implementation/verification is underway; no acceptance pass yet.
+the UI boundary. Local acceptance passes; publication/current-head remote CI and
+candidate manual review/merge remain the handoff gates.
 Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`.
 
 - [x] Discuss and approve retry identity, occupied connectors, rejected references,
@@ -90,10 +91,13 @@ Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`
 - [x] Candidate approves Authorize-only UI probe (D-23); exact Boot rationale,
   remaining connection-takeover caveat and original-task compatibility are recorded
   in SPEC.md. Other session decisions/full-plan approval and runtime tests remain open.
-- [ ] Status/Start/Meter/Stop handlers, session migrations and API/UI session views.
-- [ ] One permitted complete 10.0 kWh session through unchanged scenario 01 and API.
-- [ ] Denied-start outcome and session authorization snapshot, without false billing claims.
-- [ ] Meaningful session tests, code/architecture review and manual PR review.
+- [x] Status/Start/Meter/Stop handlers, session migrations and API/UI session views.
+- [x] One permitted complete 10.0 kWh session through unchanged scenario 01 and API.
+- [x] Denied-start outcome and session authorization snapshot, without false billing claims.
+- [x] Meaningful session regression tests and independent code/architecture reviews;
+  findings repaired and regression-tested. Publication/final evidence follows below.
+- [ ] Publish verified WP-1b PR in KWMS with layered review/presentation guide.
+- [ ] Candidate manually reviews/merges WP-1b before dependent WP-2 work.
 
 ## WP-2 — Session correctness, audit and scenario experience
 
@@ -159,7 +163,7 @@ conflict and record the candidate's decision, with remaining requirements incomp
 | Single-node limits | Three backend replicas do not remove the single database/host failure domain. Persistent volume is not a backup. Explain production recovery needs. |
 | Observation gaps | Local diagnostic logs can rotate/disappear; no authenticated operator actor or external durable log collector. Durable business audit is separate. |
 | Candidate comprehension | Explain material choices and demonstrate failure behavior at each gate; no opaque submission. |
-| Authorization probe side effect | Candidate approved D-23: Authorize-only UI adapter avoids incidental Boot/session interruption; original helper/scenarios stay unchanged. A valid probe still supersedes an older same-ID socket (not its durable session); document the caveat and test it. Required scenario 07 remains mandatory; implementation is pending. |
+| Authorization probe side effect | D-23 implemented: Authorize-only UI adapter avoids incidental Boot/session interruption; original helper/scenarios stay unchanged. Actual three-replica smoke proves active-session view remains unchanged while old socket is fenced, then completion succeeds on another replica. UI/README show the shared-ID caveat. Broader crash/failure proof remains WP-3. |
 
 ## Review evidence
 
@@ -243,3 +247,26 @@ commit, findings addressed, and remaining limitations at each gate.
   retries; apply bounded grace after interruption/completion; retain invalid-time
   Stop evidence and mark active sessions interrupted without a trusted completion.
   No application code changed; these are design findings, not runtime-test evidence.
+- WP-1b acceptance: `make check` passes source/10 guard cases, dependency consistency,
+  formatting/lint, strict mypy and deployment configs. `make test` passes **131 tests**
+  against isolated PostgreSQL, including concurrent migration startup, unchanged
+  scenarios 01 and 07 with actual response-ID/API/DB postconditions, denied starts,
+  revocation/retry snapshots, grace/long-active protection, connector replacement,
+  chronological meter evidence, first Stop completion, rollback/audit and three
+  explicit replica listeners. Temporary test resources were cleaned automatically.
+- WP-1b deployment: `./deploy.sh` upgraded the existing local Swarm without deleting
+  data/secrets and reached healthy 3/3 backend + 1/1 frontend + 1/1 db. Extended
+  `make smoke` proves a session starts on task 1, the UI's real Authorize-only probe
+  preserves its whole API view while fencing the old socket, then task 3 completes
+  the same transaction at 10.0 kWh/60 seconds. API-backed list/detail return HTTP 200.
+- WP-1b live browser: observed the displayed shared-ID warning, Accepted result with
+  exactly one Authorize send/receive pair (no Boot), station-filtered history and
+  completed transaction detail showing 10.0 kWh/60 seconds, UTC times, separate state/
+  authorization/quality and explicit eligibility prerequisites. Screenshot saved
+  outside the submission tree. This is observed QA, not a checked-in browser suite.
+- WP-1b independent reviews: backend/application and frontend/security/schema reviews
+  completed with no remaining blocker. Repaired empty-tag identity, Decimal precision/
+  exponent overflow, historical readings below baseline/neighbours, Stop earlier
+  than observed meter evidence, completed-summary mutation, and invalid-ID 503 mapping.
+  Regression tests cover these findings. Full scenario dashboard, other supplied
+  scenario acceptance, crash/load/retention and production security remain later work.
