@@ -208,10 +208,71 @@ async def main() -> None:
         response.raise_for_status()
         assert 'class="badge badge-accepted">Accepted</strong>' in response.text
         assert (await http.get("http://frontend:8000/health/ready")).status_code == 200
+
+        # Explicit verification data only; the UI itself never grants permissions.
+        response = await http.post(base + "/api/id-tags", json={"id": "CHECK-BLOCKED"})
+        assert response.status_code in {201, 409}
+        response = await http.put(
+            base + "/api/stations/CHECK-CP/permissions/CHECK-BLOCKED", json={"enabled": False}
+        )
+        response.raise_for_status()
+        page = await http.get("http://frontend:8000/simulation")
+        page.raise_for_status()
+        response = await http.post(
+            "http://frontend:8000/simulation",
+            data={
+                "station_id": "CHECK-CP",
+                "id_tag": "CHECK-TAG",
+                "blocked_id_tag": "CHECK-BLOCKED",
+                "acknowledge_boot": "yes",
+                "csrf_token": csrf(page.text),
+            },
+            timeout=28,
+        )
+        response.raise_for_status()
+        assert "8/8 protocol" in response.text and "8/8 session data" in response.text
+        ids = re.findall(r'href="/sessions/(\d+)"', response.text)
+        assert len(ids) == len(set(ids)) == 8, "Scenario UI must link eight exact, distinct IDs"
+        expected = (
+            ("completed", 10.0, 3300.0, True),
+            ("completed", 10.0, 3300.0, True),
+            ("interrupted", 6.0, None, False),
+            ("completed", 4.0, 3600.0, True),
+            ("completed", 8.0, 2700.0, True),
+            ("completed", None, 3300.0, False),
+            ("completed", 3.0, 3300.0, True),
+            ("completed", 0.5, 3300.0, False),
+        )
+        for identifier, outcome in zip(ids, expected, strict=True):
+            record = (await http.get(base + f"/api/sessions/{identifier}")).json()
+            assert record["stationId"] == "CHECK-CP"
+            assert (
+                tuple(
+                    record[key]
+                    for key in ("lifecycle", "energyKWh", "durationSeconds", "billingEligible")
+                )
+                == outcome
+            )
+        before = (await http.get(base + "/api/stations/CHECK-CP/sessions")).json()
+        page = await http.get("http://frontend:8000/simulation")
+        denied = await http.post(
+            "http://frontend:8000/simulation",
+            data={
+                "station_id": "CHECK-CP",
+                "id_tag": "CHECK-BLOCKED",
+                "blocked_id_tag": "CHECK-TAG",
+                "acknowledge_boot": "yes",
+                "csrf_token": csrf(page.text),
+            },
+            timeout=10,
+        )
+        denied.raise_for_status()
+        assert "0/8 protocol" in denied.text and "No scenarios ran" in denied.text
+        assert (await http.get(base + "/api/stations/CHECK-CP/sessions")).json() == before
     print(
         "PASS: three actual replicas, UI/CSRF, shared permissions, "
         "replay scope, stale fencing, Authorize-only session takeover, "
-        "cross-replica completion and API-backed session views"
+        "cross-replica completion, all eight UI scenario/data outcomes and denied-run gating"
     )
 
 

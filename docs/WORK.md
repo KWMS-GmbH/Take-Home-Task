@@ -109,22 +109,26 @@ Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`
 
 ## WP-2 — Session correctness, audit and scenario experience
 
-Status: in progress. Candidate approved D-28–D-30: bounded sequential execution,
+Status: locally verified; publication/current-head CI and candidate review pending.
+Candidate approved D-28–D-30: bounded sequential execution,
 one UI run per station/start spacing and transient reports with durable sessions/
 audit. Concrete contract is in SPEC.md; [plan](plans/WP-2.md) persisted.
 Branch: `codex/scenario-slice`. Whole-second rendering/cross-scenario aliasing and
-lease expiry without fencing were found during preparation; resolve through the
+lease expiry without fencing were found during preparation and resolved through the
 adapter and backend token checks, preserving originals and established retry rules.
 
 - [x] Review delivered state/retry/meter rules against the remaining scenarios;
   discuss remaining gaps, update spec and persist implementation plan.
-- [ ] Extend session rules/tests only where remaining acceptance reveals a gap.
-- [ ] Expose reliable scenario correlation using the delivered audit/replay boundary.
-- [ ] Run remaining supplied scenarios unchanged; correlate actual transaction IDs
-  through the API (01/07 already have automated API/DB acceptance in WP-1b).
-- [ ] Show all required outcomes/checks/exchanges/session fields and station history in the UI.
-- [ ] Test authorization changes, all session edge cases, repeats and their API/DB postconditions.
-- [ ] Code/architecture review, live browser QA, evidence update and candidate manual PR review.
+- [x] Preserve session rules; add remaining scenario and all-action extra-field wire tests.
+- [x] Correlate actual Start response IDs and HTTP API snapshots, never latest-session guesses.
+- [x] Execute all eight unchanged fixture files through the bounded public-helper adapter;
+  distinguish this from the original CLI entrypoint's clock/coordination behavior.
+- [x] Show separate outcomes/checks/exchanges/API session fields and existing history links.
+- [x] Test authorization gating, repeats and independent API/DB/audit postconditions.
+- [x] Independent code/architecture reviews; findings repaired with regression tests.
+- [x] Static checks, 255-test suite, deployed all-eight smoke and live browser QA.
+- [ ] Publish layered KWMS PR, confirm current-head CI and hand over for review.
+- [ ] Candidate manually reviews and merges; no dependent WP-3 implementation before merge.
 
 Acceptance: scenarios 01–06/08 have correct visible data; required UI fields are present;
 case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
@@ -137,7 +141,7 @@ to charging races, crashes, load, retention and operational recovery.
 - [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
 - [ ] Stress the delivered connector-uniqueness and charging-lock invariants with
   explicit concurrent writers across replicas.
-- [ ] Tune existing pool/transport/log bounds; add simulation limits and retention.
+- [ ] Tune existing pool/transport/log and WP-2 simulation bounds; add retention.
 - [ ] Extend serialized-migration/readiness/log checks with dependency-failure recovery proof.
 - [ ] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
   crash before/after commit, reconnect/replay and three-instance startup.
@@ -173,8 +177,8 @@ conflict and record the candidate's decision, with remaining requirements incomp
 | Tooling readiness | Docker Desktop/Engine verified; deployment checks used Engine 29.8.2, 8 CPUs and 8,319,770,624 bytes memory. Single-node Swarm initialized; healthy 3/3 backend, 1/1 frontend, 1/1 db observed. Host dependencies beyond Docker/Git/shell/OpenSSL are unnecessary. |
 | Scope/time | User added actual three-replica correctness, audit and browser QA. Keep packages reviewable and record honest omissions/time; six-hour intent still applies. |
 | ID reuse ambiguity | D-24/D-27 are approved and implemented: exact active matches stay protected; closed/interrupted matches have a 24-hour post-transition grace. No eternal station/uniqueId key. Repeated Stop protection is independent of that Start window. |
-| Input compatibility | The pinned OCPP public-schema/message API works with the narrow raw-name filter. Existing Boot/Authorize collision and meter-filter tests pass; exhaustive extra-field wire coverage of the four charging actions remains a gap. |
-| Fixture timing | Scenario 02 re-renders timestamps. Preserve original files and test data invariants rather than byte identity. |
+| Input compatibility | Pinned public-schema/message API plus raw-name filter; wire regressions now cover Boot/Authorize and all four charging actions, including collision/nested-meter attempts. Broader fuzzing is not claimed. |
+| Fixture timing | Original files remain identical. The UI adapter uses one clock per case and spaces distinct cases by at least 1.1s; the unchanged CLI has its original dynamic clock and no run coordination. |
 | Single-node limits | Three backend replicas do not remove the single database/host failure domain. Persistent volume is not a backup. Explain production recovery needs. |
 | Observation gaps | Local diagnostic logs can rotate/disappear; no authenticated operator actor or external durable log collector. Durable business audit is separate. |
 | Candidate comprehension | Explain material choices and demonstrate failure behavior at each gate; no opaque submission. |
@@ -310,3 +314,33 @@ commit, findings addressed, and remaining limitations at each gate.
   `39032952561` passed. Local main fast-forwarded; `make verify-assignment` passes.
   New preparation branch `codex/scenario-slice`; no WP-2 application changes or new
   runtime-test pass are claimed by this merge/source check.
+- WP-2 acceptance: `make check` passes assignment/10 guard cases, dependency checks,
+  formatting/lint, strict mypy (24 application modules) and deployment configuration.
+  `make test` passes **255 tests** against isolated PostgreSQL. All eight original
+  fixture files execute through the adapter with distinct actual transaction IDs,
+  exact API time/meter/state outcomes and independent database assertions: seven
+  completion events, one repeated-Stop audit and no completion for reboot-without-Stop.
+  Tests also cover cross-instance two-slot/scope admission, expiry/token fencing,
+  denied/permitted-secondary setup, unavailable API data, bounded partial/timeout
+  evidence and all-action extra-field collisions. Disposable test resources cleaned up.
+- WP-2 initial deployed acceptance: existing Swarm upgraded without data/secret reset;
+  three actual backend tasks remain healthy. Extended `make smoke` passes all-eight
+  UI protocol/data outcomes with exact API links and denied-primary zero-scenario
+  gating, alongside the existing cross-replica takeover/completion checks. The seven
+  reserved demo examples remain unchanged. Final reviewed-image redeploy and the
+  extended smoke pass again after the reporting repairs.
+- WP-2 live browser: observed Accepted/Blocked preflight, eight protocol/data passes,
+  all exact session snapshots (including interrupted/provisional reboot, late Stop,
+  offsets, suspicious meter and denied charging), and denied-primary 0/8 execution.
+  This is observed QA; Flask route tests and stack smoke provide repeatable automation,
+  not a claimed checked-in browser-driver suite.
+- WP-2 final browser checkpoint: reviewed images show eight protocol/data passes,
+  exact distinct IDs and expanded original checks/real exchanges. Execution badges
+  explicitly say "Execution completed", separate from charging lifecycle; verbose
+  automated checks are collapsible. Overview/detail screenshots saved outside the
+  submission tree; the result tab remains available for candidate review.
+- WP-2 independent code/architecture reviews found lease-expiry-without-fencing,
+  shared-clock/derived-station overlap risks before implementation. Integrated review
+  caught incomplete execution marked completed and lost preflight frames on timeout;
+  both are repaired with regressions. Final independent review reports no blocker.
+  No production authentication, crash/load/retention or complete-submission claim.

@@ -55,3 +55,12 @@ background-job framework or durable report archive. Existing session rules stay 
 
 Planned coherent commits: approved spec/plan; admission/fencing with tests;
 scenario adapter/data acceptance; browser slice; integrated verification/review docs.
+
+## Execution checkpoint
+
+Implemented without changing original files or existing session policy. `make check`
+and the 255-test suite pass; all eight helper-adapter scenarios have independent
+API/DB/audit evidence. Actual three-replica UI smoke and positive/denied live browser
+flows pass. Final review repaired incomplete-case classification and preflight timeout
+evidence; no remaining review blocker. Final image/browser checkpoint, publication,
+current-head CI and candidate manual review are recorded in WORK.md as they occur.

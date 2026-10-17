@@ -196,8 +196,9 @@ second session. Passing this remains mandatory even if ordinary UI runs are seri
 - Acquire a short-lived internal HTTP lease before OCPP preflight; reject same-station
   overlap or exhausted capacity clearly. Initial bounds: two global run slots,
   one per station, 30-second lease, 20-second overall async execution deadline,
-  bounded cleanup/release before the existing 30-second frontend worker limit.
-  These are conservative demo defaults, not capacity proof. Admission/release uses
+  cleanup/release bounded separately. Twenty seconds is the execution budget,
+  not a hard total HTML-response wall time: form lookups and cleanup have their own
+  finite bounds. These are conservative demo defaults, not capacity proof. Admission/release uses
   short station-then-slot locked PostgreSQL transactions and token-checked release;
   expired slots are reusable if a frontend process dies. Static slot rows are
   coordination metadata, not automatic station/tag/session demo data.
@@ -409,14 +410,14 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 
 | ID | Decision needed | Owner |
 | --- | --- | --- |
-| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. Remaining scenario, retention/failure extensions stay WP-2/WP-3. | WP-2, WP-3 |
-| Q-02 | Library choice/public API/raw filter resolved and pinned in WP-1a; collision, malformed-input and output-validation tests pass. Extend exact extra-field wire coverage to all four charging actions; do not imply existing Boot/Authorize proof covers every action. | WP-2 |
-| Q-03 | D-25–D-27/D-12 are implemented/tested: supersede occupied attempts, reject bad references, retain suspicious evidence, interrupt invalid-time Stops, preserve first admissible completion. Full remaining scenario acceptance/UI stays WP-2. | WP-2 |
+| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes now pass through the WP-2 adapter; retention/failure extensions remain. | WP-3 |
+| Q-02 | Resolved: pinned public API/raw filter, malformed-input/output validation and exact extra-field wire/collision coverage for Boot/Authorize plus all four charging actions pass. Broader fuzzing is not claimed. | Closed in WP-2 |
+| Q-03 | D-25–D-27/D-12 are implemented/tested: supersede occupied attempts, reject bad references, retain suspicious evidence, interrupt invalid-time Stops, preserve first admissible completion. All eight adapter/API/DB outcomes and browser result views verified; candidate PR review remains separate. | WP-2 review gate |
 | Q-04 | D-21/D-22, initial bounds and explicit/deployed cross-replica continuation are implemented/tested. Extend concurrent-writer/crash/load proof and tune limits in WP-3. | WP-3 |
-| Q-05 | Atomic session audit fields and bounded/redacted operational logging with rotation are implemented. Retention and reliable full-scenario result extraction remain; do not promise durable external diagnostic collection. | WP-2, WP-3 |
+| Q-05 | Atomic session audit, bounded/redacted operational logs and exact full-scenario ID/API extraction are implemented/tested. Retention remains; do not promise durable external diagnostic collection. | WP-3 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
-| Q-07 | D-23 implemented/verified and WP-1b manually merged: Authorize-only UI adapter, unchanged originals, documented ownership caveat, exact active-view preservation and stale-socket rejection. Full scenario browser experience remains WP-2. | WP-2 |
-| Q-08 | Candidate approved scope as D-28–D-30. Implement/review the concrete contract above; bounds are initial demo limits, not capacity proof. Original-file integrity, exact correlation and partial-failure evidence remain acceptance gates. | WP-2 |
+| Q-07 | Resolved implementation: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser scenario experience verified. Candidate manual WP-2 review remains. | WP-2 review gate |
+| Q-08 | D-28–D-30 contract implemented with source integrity, exact correlation, partial/deadline evidence and independent review. Initial demo bounds are not capacity proof. Publication/current-head CI and candidate manual review remain. | WP-2 review gate |
 
 ## Source findings and spec change history
 
@@ -477,6 +478,12 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   Independent design review caught lease-expiry-without-fencing and shared-clock
   monkeypatch risks; the contract uses station-locked run-token validation and
   scenario-local timestamp rendering. This records implementation scope, not a pass.
+- WP-2 acceptance implements that contract without changing session policy or original
+  files. Review repaired partial-execution classification and timeout-during-preflight
+  evidence retention, both with regressions. Twenty seconds bounds async execution;
+  separately bounded form lookups/cleanup mean it is not a hard HTML wall-time promise.
+  All-eight helper-adapter/API/DB acceptance and live browser results are now verified;
+  the original CLI retains its dynamic clock and lacks UI-run admission/spacing.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),

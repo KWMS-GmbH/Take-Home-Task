@@ -7,8 +7,9 @@ containers and tests). Codex ran real PostgreSQL/three-replica checks and live b
 QA. Review agents inspected code and architecture; their account limit interrupted
 the final pass, so subsequent integration/browser fixes were self-reviewed and
 regression-tested. I review and merge the PRs myself. This is an interim account:
-the current charging/session slice adds durable state transitions, API-backed session
-views and an Authorize-only probe; final candidate review remains pending.
+the manually merged charging/session slice adds durable state transitions, API-backed
+session views and an Authorize-only probe. The current scenario slice is awaiting my
+manual PR review; final submission acceptance remains pending.
 
 I corrected Codex's recommendation of one final PR: I will review and manually merge
 several reasonably sized vertical-slice PRs. I also required actual three-backend
@@ -31,3 +32,13 @@ During my UI review I requested varied visible examples. Codex added an explicit
 HTTP/OCPP demo command, verified repeatability/non-destructive refusal in integration
 tests and inspected all seven actual session pages in the live browser. These are
 illustrative data for the existing rules, not a replacement for supplied scenarios.
+
+For the scenario slice, Codex implemented a server-side adapter around the supplied
+public replay helpers, bounded database-coordinated runs and separate protocol/API
+result checks. All eight original fixture files remain byte-identical. Review caught
+whole-second retry-identity collisions, lease expiry without fencing and overlap with
+the derived second station before implementation. Integrated review/tests corrected
+partial execution marked completed and lost authorization frames during timeout.
+The unchanged CLI retains its original clock/coordination behavior; this adaptation
+is documented rather than presented as the unmodified entrypoint. Codex ran isolated
+PostgreSQL/audit tests, actual three-replica UI smoke and live positive/denied browser QA.
