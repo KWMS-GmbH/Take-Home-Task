@@ -2,7 +2,8 @@
 
 Status: foundation/WP-1a imported with full history into canonical KWMS main;
 WP-1b manually merged as KWMS PR #2 (`4b2db68`) and WP-2 as KWMS PR #3 (`e0b51fc`),
-2026-10-17. WP-3 is in discussion/preparation; unresolved mechanics are not approved.
+2026-10-17. Candidate approved the WP-3a/WP-3b split, isolated failure tests and
+conservative retention boundary; WP-3a implements the failure-proof contract below.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -78,6 +79,8 @@ the supplied runner's warning/failure count alone.
 | D-28 | Candidate approved running all eight scenarios sequentially with a hard deadline, one UI run per selected station, explicit Boot/takeover warning and no background-job framework. PostgreSQL coordinates short-lived admission across frontend/backend processes; do not hold a database transaction over network work. |
 | D-29 | Candidate approved spacing scenario starts to avoid whole-second Start identity collisions without changing originals or weakening retries. The adapter also resolves relative timestamps from one instant within each scenario so intended duplicates stay identical; copied in-memory steps only, never shared replay-global monkeypatches. |
 | D-30 | Candidate approved separate protocol/data results and temporary simulation reports, while sessions/business audit stay durable. Correlate actual Start response IDs and fetch those exact sessions via HTTP. No run archive/resume engine; timeout/failure does not undo committed charging data. |
+| D-31 | Candidate approved two WP-3 PRs: WP-3a charging races/process-crash correctness, then WP-3b bounded load/dependency recovery/maintenance. Use disposable test resources for injected failures, never the live demo stack. No new deployed service, autoscaling, socket migration or database HA. |
+| D-32 | Candidate approved preserving sessions, meter evidence and business audit. WP-3b maintenance may prune only superseded-connection replay records in bounded batches; never age-delete the current connection/generation's replay records. Concrete maintenance safeguards/defaults remain for that package's spec, not automatic purge authority here. |
 
 These are derived choices, not claims that KWMS specified every mechanism.
 
@@ -179,6 +182,52 @@ second session. Passing this remains mandatory even if ordinary UI runs are seri
 - Assignment integrity remains clean; warnings explain the remaining shared-ID side effect.
 
 ## Implementation boundaries and mechanics
+
+### WP-3a approved scope and concrete verification contract
+
+This slice proves existing D-07/D-09–D-13/D-21–D-27 behavior, rather than adding
+charging policy or a new architecture. A discovered material conflict returns to
+candidate discussion; a local test is not evidence until it actually runs.
+
+- Use isolated real PostgreSQL and three independently configured application
+  instances with separate pools/instance IDs. Deterministic events/transaction
+  barriers establish the contested order; do not rely on arbitrary sleeps to win
+  races. Bound barrier waits, socket waits and child-process cleanup.
+- For overlapping station generations, both lock orders are meaningful: an older
+  valid request may commit before a newer generation promotes; once the newer
+  owner commits promotion, the older writer is stale and cannot mutate or replay.
+  Do not expect two replicas to own the same socket at once. Assert API state and
+  exact session/inbox/audit effects, not merely task completion or CALLRESULT.
+- Race distinct Starts on one connector: at most one active attempt; if both valid
+  requests serialize before fencing, the later distinct attempt interrupts the
+  earlier without inventing a stop. Exact Start retries preserve one transaction.
+  Different connectors can remain active independently; unrelated stations must
+  make progress while one station transaction is held.
+- Race permission revocation against a fresh Start in both controlled orders:
+  the Start snapshots the committed permission at its serialized decision boundary.
+  Later revocation does not rewrite an existing session/retry's authorization.
+  Race equal/conflicting Stops and prove one admissible completion/energy effect;
+  diagnostics are not duplicate completion events.
+- Kill only an explicitly spawned test child process at two observed boundaries:
+  after target domain/audit/inbox writes are flushed but before commit, and after
+  committed service return but before the protocol sends its CALLRESULT. Use test-
+  local instrumentation, not production fault endpoints/settings. Never kill by a
+  broad process name or stop the deployed stack/database.
+- Cover Start and Stop at both crash boundaries. Before commit: external readers
+  see no partial target mutation, and process death rolls back its transaction.
+  After commit/before reply: external readers see the whole committed result even
+  though the client received no success. Reconnect to a surviving instance and
+  retry with a new socket: exact Start identity and transaction-owned Stop rules,
+  not the dead connection's inbox key, prevent duplicate business effects.
+- A process death/reconnect alone does not Boot, interrupt or complete charging.
+  Preserve authorization-at-start, reported timestamps, meter values, integer IDs
+  where committed, and one eventual completion. Sequence gaps after rollback are
+  valid; do not require contiguous or reused IDs. Check locks/resources are released
+  and all test-owned children/sockets/engines are reaped on success or failure.
+- This is bounded deterministic correctness proof, not measured fleet capacity,
+  host/database HA, all possible crash timings or WP-3b retention/recovery proof.
+  Keep the existing container check/test/deployed smoke gates and independent
+  code/architecture review; no new browser behavior is required by this test slice.
 
 ### WP-2 approved scope and concrete implementation contract
 
@@ -487,6 +536,9 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 - 2026-10-17: Candidate manually merged WP-2 (`e0b51fc`); tree identity with reviewed
   `8b45a72` and assignment integrity verified. Begin WP-3 grilling, not automatic
   approval of retention, load targets, failure-injection mechanics or new architecture.
+- 2026-10-17: Candidate approved the WP-3 split, test-only fault isolation and
+  conservative replay-retention boundary (D-31/D-32). WP-3a's contract makes the
+  existing serialization/crash semantics explicit; WP-3b remains separately gated.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),

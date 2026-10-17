@@ -141,8 +141,9 @@ case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 
 ## WP-3 — Three-replica reliability and bounded operation
 
-Status: discussion/preparation only after WP-2's manual merge. Material mechanics
-and the implementation plan still need candidate agreement. Extend existing foundations
+Status: candidate approved two PRs, isolated fault tests and conservative retention
+on 2026-10-17 (D-31/D-32). WP-3a in progress under the concrete SPEC.md contract and
+[persisted plan](plans/WP-3a.md); WP-3b waits for its manual merge. Extend existing foundations
 to charging races, crashes, load, retention and operational recovery.
 
 - [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
@@ -159,14 +160,25 @@ to charging races, crashes, load, retention and operational recovery.
 Acceptance: all original cases plus U-SCALE work with three replicas. If scope/time requires
 an omission, obtain a visible scope decision and retain it as incomplete in the matrix.
 
-Preparation recommendation, **not yet candidate-approved**: split WP-3 into a first
-race/process-crash correctness PR and a second bounded-operation/dependency-recovery/
-maintenance PR. Exercise failures only on isolated test resources, preserving the
-live demo stack. Retention proposal: bounded cleanup of superseded-generation replay
-rows only; preserve sessions, meter evidence and business audit, and never age-delete
-the current generation's replay rows. Scope/retry/maintenance details require grilling,
-spec approval and a persisted plan before implementation. No autoscaling, socket
-migration, database HA or new deployed service is proposed.
+Approved split: **WP-3a** deterministic race/process-crash correctness, then **WP-3b**
+bounded operation/dependency recovery/maintenance. Failures run only on isolated test
+resources. Preserve sessions, meter evidence/business audit and current-generation
+replay rows; WP-3b may clean only superseded replay rows in bounded batches, with its
+concrete safeguards still to be specified. No new deployed service/autoscaling/HA.
+
+### WP-3a — charging races and process-crash correctness
+
+- [x] Candidate approves scope/boundaries; record concrete spec and implementation plan.
+- [ ] Deterministic three-instance Start/connector, permission, Stop and stale-writer races.
+- [ ] Actual test-child Start/Stop death before commit and after commit/before response.
+- [ ] Exact API/PG/inbox/audit/retry assertions, bounded cleanup and repeated focused runs.
+- [ ] Full regression/static/source gates, actual deployed smoke and independent reviews.
+- [ ] Proactive layered KWMS PR/current-head CI handoff; candidate manually merges.
+
+### WP-3b — bounded operation, recovery and safe maintenance
+
+Not started. Discuss concrete workload/maintenance safeguards after WP-3a's merge;
+retain the approved boundaries without claiming that load/recovery/retention is proven.
 
 ## WP-4 — Independent acceptance and submission
 
