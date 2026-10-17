@@ -1,6 +1,7 @@
 # Charging Session Service — living specification
 
-Status: foundation approved; WP-1a implementation authorized, 2026-10-17.
+Status: foundation/WP-1a imported with full history into canonical KWMS main;
+WP-1b policies, concrete defaults and implementation plan approved, 2026-10-17.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -68,10 +69,20 @@ the supplied runner's warning/failure count alone.
 | D-20 | One asynchronous backend process hosts internal HTTP on port 8000 and OCPP-only WebSockets on port 9000, sharing the application service/database pool. |
 | D-21 | Declare three backend replicas from WP-1a. Build fencing, bounded pools, atomic audit, database constraints and serialized migrations now; WP-3 extends failure proof and tuning. U-SCALE remains pending until its acceptance tests pass. |
 | D-22 | Raw accepted connect registers the station and allocates a pending generation. Its first valid supported OCPP call promotes ownership; no Boot-first requirement is added and garbage alone cannot evict an owner. Every mutation checks database ownership. |
+| D-23 | Candidate approved an Authorize-only adapter for the UI authorization check on 2026-10-17. Replace only the UI's use of the supplied Boot+Authorize convenience helper; keep the original helper/scenarios byte-for-byte and keep deliberate scenario Boots meaningful. This avoids an incidental reboot/session interruption, but a valid Authorize still promotes its connection under D-22. Full rationale, caveat and required verification follow below. |
+| D-24 | Candidate approved cross-connection Start retry recognition using station, connector, tag, equivalent UTC start time and starting meter within an explicit retry window. Recognized retries return the original transaction ID and original authorization snapshot, not a new session or a fresh permission decision. A fresh Start still uses current permission. Never use an eternal station/message-ID key. |
+| D-25 | Candidate approved treating a different, non-retry Start on an occupied connector as a new physical attempt: mark the previous session interrupted without inventing its stop time, create the new active attempt and return its new transaction ID/current authorization. Flag the conflict for review and allow a later Stop to correct the previous session. This preserves one active session per connector and the brief's mandatory transaction-ID response. |
+| D-26 | Candidate approved rejecting unknown/wrong-station transaction references without session mutation, while retaining otherwise valid but suspicious time/meter evidence with review indications. Do not fabricate values, destructively replace trustworthy summaries or overwrite an already established completion. Preserve atomic audit and first-established Stop semantics. |
+| D-27 | Candidate approved the concrete WP-1b contract/plan: exact active-session Start retries never expire; interrupted/completed matches have a configurable default 24-hour grace from server receipt of the lifecycle transition. Stop-before-Start is acknowledged/evidenced and changes active to interrupted, without a trusted stop/duration/final energy; later admissible Stop corrects that same session. |
 
 These are derived choices, not claims that KWMS specified every mechanism.
 
 ## Operator experience
+
+The browser is the operator interface, not the OCPP client. Simulation executes
+server-side in the Flask frontend container; the Python replay helper opens real
+WebSockets to the backend. Stations and permissions are durable database records,
+not browser-resident simulated devices. No physical charging hardware is included.
 
 List connected/manually created stations and tags; create stations and tags and
 toggle station/tag permissions. Choose a station, candidate tag, and separate
@@ -81,7 +92,153 @@ messages, the supplied check lines, and its sessions with status, start, stop,
 duration, and energy. Provide a station-filtered sessions list. Unknown/provisional
 values must be visibly distinct from zero or confirmed facts.
 
+### D-23 — Authorization-only probe: approved rationale and caveat
+
+Status: approved design, not yet implemented or runtime-verified. This changes the
+WP-1a UI probe mechanic, not the original assignment or the backend's Boot behavior.
+
+**Why change it:** `take-home/replay.py` lines 296–321 define `authorize()` as a
+real station connection that sends Boot and then Authorize. Under D-07, a fresh Boot
+with open sessions marks those sessions interrupted, preserving evidence without
+inventing a stop. A button intended to check permission must not accidentally declare
+a simulated reboot. This is a record/lifecycle effect, not a remote-stop command.
+
+**Accepted behavior:** the UI opens a bounded real OCPP connection and sends only
+Authorize, displays its actual result/exchanges, and runs scenarios only if Accepted.
+It does not substitute a database/API permission lookup for the required protocol
+check. Original scenario execution and its explicit Boots remain unchanged. Those
+Boots can still intentionally interrupt open sessions, and later valid Stops must
+correct the same durable sessions. The supplied command-line helper is unchanged,
+so its preflight continues to send Boot; document that distinction in the delivered
+README. Replacing only our UI helper use does not remove any required message handler.
+
+**Compatibility with the original task:** BRIEF lines 89–97 require an Authorize
+check before scenario execution, not a preceding Boot. Line 179 permits wrapping,
+changing or replacing the provided tooling with an explanation. Lines 133–137
+require a sensible reboot/missing-stop and late-stop policy; D-07 remains in force.
+The Authorize-only adapter therefore satisfies the stated UI workflow without
+changing any original requirement or weakening the real scenario tests.
+
+**Connection caveat:** a new socket alone is pending, but its first valid supported
+call, including Authorize whether Accepted, Blocked or Invalid, promotes its generation.
+Thus the probe can fence an existing socket using the same station ID, including one
+from another simulation run. Its next valid supported request is rejected and the
+old socket closes; closing the probe does not restore the old generation, so that
+client must reconnect. This ownership change must not, by itself, mark durable
+charging sessions interrupted or completed. A subsequent connection from the same
+station can continue them; session records belong to the station, not a particular
+socket or backend process. This is separate from generation ownership of the live socket.
+
+This is not a passive monitoring facility, station authentication or safe parallel
+simulation under one shared station identity. Explain the caveat in the UI/help and
+README; use distinct station IDs for independent runs. Do not silently add a
+Boot-first requirement, reject all second connections, or exempt required edge cases.
+The brief explicitly requires same-station overlapping connections (lines 142–143).
+Unchanged scenario 07 starts a transaction on socket a, Boots on socket b and Stops
+the same transaction there: the final result must be one completed 3.0 kWh session.
+Boot may first mark it interrupted; that later Stop must correct it, not create a
+second session. Passing this remains mandatory even if ordinary UI runs are serial.
+
+**Required verification, not evidence of a pass:**
+
+- The actual UI probe sends no Boot and returns real Accepted/Blocked/Invalid results;
+  denied or failed authorization cannot start scenario execution.
+- With an active durable session, Authorize-only takeover changes connection ownership
+  but not session lifecycle, authorization-at-start, meter evidence or transaction ID;
+  stale-socket mutations remain fenced and another valid connection can continue it.
+- A deliberate fresh Boot still interrupts open sessions, duplicate handling remains
+  governed by D-12, and a valid late Stop completes/corrects the same session.
+- Unchanged scenario 07 proves its API/DB postconditions, not merely protocol success.
+- Assignment integrity remains clean; warnings explain the remaining shared-ID side effect.
+
 ## Proposed mechanics — review within the owning work package
+
+### WP-1b approved implementation contract
+
+D-23–D-27 and the persisted implementation plan are candidate-approved. Approval
+authorizes implementation, not a claim that the behavior is implemented or verified.
+
+**Session records and boundaries**
+
+- Use the database integer primary key as the OCPP/API transaction ID. Store station,
+  connector, supplied tag text (including unknown tags), authorization-at-start,
+  lifecycle, reported event times, start/stop meters and explicit review reasons.
+  Unknown denied tags cannot require an existing tag-row foreign key.
+- Keep reported/received times distinct. Require timezone-aware, parseable timestamps
+  and normalize equivalent offsets to UTC; do not substitute server receipt time for
+  a station's event time. Never expose negative duration or energy as a valid result.
+- Keep relevant meter/status evidence and session audit in PostgreSQL. StatusNotification
+  is connector telemetry, not authority to start/complete a charging transaction.
+  Start opens a physical attempt, a new Boot interrupts it, and an admissible Stop
+  completes/corrects it. Denied attempts remain open until Stop, Boot or superseding
+  Start, but authorization remains non-Accepted regardless of observed energy.
+- Expose list/detail HTTP resources and station-filtered Flask session views, including
+  lifecycle, authorization, quality/review reasons, start/stop, duration and energy.
+  Completed energy uses trustworthy start/stop endpoints; active/interrupted energy
+  is either explicitly provisional from trustworthy readings or unknown, never a
+  fabricated final total. Billing eligibility is only a derived indication with its
+  prerequisites visible, not invoicing or authorization to charge a customer.
+
+**Retry and concurrency defaults**
+
+- Start retry boundary: always recognize an exact match to the currently
+  active session, regardless of its age. A strict clock cutoff must not make a long
+  charge interrupt itself and create a second transaction on retry. For interrupted
+  or completed sessions, use a configurable default 24-hour grace period from server
+  receipt of that lifecycle transition, not the historical station event time.
+  Completion of an interrupted session starts its completion grace; repeated messages
+  alone never extend it. Normalize timestamps before matching the relevant fields
+  from D-24, and check for a recognized retry before occupied-connector logic.
+  Keep history after the window; do not silently call this permanent exactly-once
+  processing. An expired identical-looking Start needs a review indication rather
+  than an unqualified normal-billing claim if processed as a new attempt.
+  This window applies only to cross-connection Start recognition: it does not expire
+  transaction-ID references, repeated-Stop protection or the existing same-connection
+  response-replay boundary.
+- Reuse the station-row lock and generation checks before every session mutation;
+  order locks station then session. A partial unique database index enforces one
+  active session per station/connector. A superseding Start transitions the previous
+  session and inserts the next in the same transaction, with audit and replay response.
+- Distinct requests serialized behind permission changes observe the committed current
+  permission. A recognized retry preserves its original decision even after revocation;
+  it is a replay of an earlier attempt, not permission for a new attempt.
+- Unknown/wrong-station transaction IDs, or MeterValues naming the wrong connector,
+  receive the same generic CALLERROR with a bounded audit event and no session mutation.
+  Do not disclose another station's transaction details. Malformed frames/required
+  field types still follow the existing input-rejection boundary.
+
+**Suspicious evidence and completion**
+
+- Keep out-of-order/duplicate meter samples as evidence without moving a trustworthy
+  latest-reading summary backward in event time or meter value. Flag inconsistent
+  evidence rather than using arrival order to rewrite the physical history.
+- A Stop with a backwards end meter can complete the attempt when its time is
+  admissible, but energy is unknown and marked suspicious, never negative/zero by
+  correction. A repeated Stop cannot overwrite an established completion; audit
+  meaningful disagreement and preserve the original result/energy effect.
+  There is one completion/domain-stop event; duplicate/conflict audit entries are
+  diagnostics, not additional completion events or repeated energy effects.
+- Time policy: a structurally valid Stop before the session's start is
+  acknowledged and retained as suspicious evidence; move an active session to
+  interrupted so it does not appear to be charging forever or block its connector.
+  Do not establish a trusted stop time, duration or final energy, or invent substitutes.
+  A later admissible Stop can complete the same session. An already-completed session
+  is never downgraded by a subsequent bad Stop. This distinguishes protocol receipt
+  from a trustworthy business outcome. First-established completion means the first
+  admissible Stop, not the first syntactically valid Stop carrying impossible chronology.
+- A fresh Authorize-only connection must leave existing session state unchanged,
+  while preserving D-22's socket fencing. A deliberate Boot still interrupts; a
+  subsequent valid Stop corrects that same interrupted record, including scenario 07.
+
+**This slice versus later work**
+
+- WP-1b delivers the four session actions, migration, API/list/detail UI, Authorize-only
+  probe and automated unchanged scenario-01 acceptance with independent API/DB checks.
+  Full multi-scenario UI/result correlation remains WP-2; do not silently move the
+  entire simulator experience or production security into this PR.
+- Test these minimum integrity rules now, including cross-replica session access and
+  takeover without lifecycle change. Broader crash/load/retention and all-scenario
+  proof still belong to WP-2/WP-3 and stay visibly incomplete in the matrix.
 
 ### WP-1a accepted boundary
 
@@ -89,6 +246,7 @@ values must be visibly distinct from zero or confirmed facts.
   until their owning slice; charging/session completion is not claimed.
 - Create/list stations and tags, toggle permissions, and check real OCPP authorization
   from the Flask UI through the unchanged provided helper. Empty data is explicit.
+  This describes delivered WP-1a; D-23 supersedes only the probe helper choice in WP-1b.
 - Filter raw extras before library name conversion; retain request/output validation.
   Correlatable errors get CALLERROR; malformed JSON must not poison later valid calls.
 - Same-connection replay uses `(connection UUID, uniqueId)` and canonical relevant
@@ -120,6 +278,9 @@ values must be visibly distinct from zero or confirmed facts.
 
 ### Remaining mechanics
 
+- Implement the approved Authorize-only UI probe and its explicit connection caveat
+  from D-23. Preserve original tooling and deliberate scenario Boot behavior. This
+  decision alone does not close the other WP-1b session semantics or approve its full plan.
 - PostgreSQL connection generations/fencing, row locks and a partial unique index
   enforce ownership and connector invariants. Define takeover at a validated
   connection boundary without adding a mandatory Boot-first sequence to the brief.
@@ -138,12 +299,13 @@ values must be visibly distinct from zero or confirmed facts.
 
 | ID | Decision needed | Owner |
 | --- | --- | --- |
-| Q-01 | Define same-connection replay/conflict behavior and bounded cross-connection retry recognition, particularly Start. New connections may legally reuse IDs. Do not cache fresh authorization or Boot responses on an eternal station/ID key. | WP-2, WP-3 |
+| Q-01 | Policy/defaults resolved by D-24/D-27 and connection-scoped replay: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. Implement/test now; retention/failure extensions remain WP-2/WP-3. | WP-1b, WP-2, WP-3 |
 | Q-02 | Prove library adapter behavior for arbitrary extra fields, raw-name collisions (`callUniqueId`/`call_unique_id`, `connectorId`/`connector_id`), malformed input, and output validation. Pin or reject the evaluated library based on evidence. | WP-1 |
-| Q-03 | Decide response to a fresh Start on an already-active connector, out-of-order meter samples, invalid time ordering, and unknown transaction references. Define how conflicting stops for an already-completed session are reported/audited while preserving D-12's first established result. | WP-2 |
+| Q-03 | Policy/defaults resolved by D-25–D-27/D-12: supersede occupied attempts, reject bad references, retain suspicious evidence, interrupt invalid-time Stops, preserve first admissible completion. Implement/test now; full scenario UI/proof remains WP-2. | WP-1b, WP-2 |
 | Q-04 | Implement D-21/D-22 and initial bounds in WP-1a; extend stale-socket/crash/load proof and tune limits in WP-3. | WP-1a, WP-3 |
 | Q-05 | Define audit-event fields/retention, diagnostic redaction and rotation, and reliable scenario result extraction, without logging unbounded attacker-controlled data. | WP-2, WP-3 |
-| Q-06 | Resolve access/final submission to the KWMS repository. The candidate has separately authorized routine project PR publication to the public fork; that workflow is not blocked on KWMS access. | Candidate |
+| Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
+| Q-07 | Design resolved by candidate approval of D-23: Authorize-only UI adapter, unchanged originals and documented ownership caveat. Implementation/verification remains WP-1b; this is not a runtime pass. | WP-1b |
 
 ## Source findings and spec change history
 
@@ -162,6 +324,29 @@ values must be visibly distinct from zero or confirmed facts.
 - Supplied scenario 02 recomputes `$ts(-5m)` for each Stop. Its two payloads can
   differ by a second despite intending a duplicate; preserve the original fixture
   and assert transaction-level idempotency instead of assuming identical bytes.
+- 2026-10-17: Candidate manually merged WP-1a; begin WP-1b discussion, not automatic
+  approval of unresolved mechanics. Clarified the existing server-side simulator
+  boundary. Brought dependent parts of Q-01/Q-03 forward and recorded Q-07 after
+  inspecting the supplied helper. No session behavior implemented by this update.
+- 2026-10-17: Candidate approved D-23 and requested an exact explanation and source
+  compatibility check, including the connection caveat. Reviewed BRIEF 89–97,
+  133–143, 179 and unchanged scenario 07; recorded the rationale and pending tests
+  above. UI probe behavior will change in WP-1b; no application code changed here.
+- 2026-10-17: Candidate manually merged the history-preserving KWMS integration
+  and authorized continuing there. Canonical remotes/publication change to KWMS;
+  existing behavior, source baseline and candidate-only merge gates are unchanged.
+- 2026-10-17: Candidate explicitly approved all three proposed session rules and
+  asked to continue (D-24–D-26). Recorded the policies and finalized the detailed
+  WP-1b contract/plan for the promised review. Concrete retry/time defaults remain
+  visibly proposed; no session implementation or new test pass is claimed here.
+- Independent plan review caught two unsafe draft details before code: a global
+  24-hour cutoff could split a still-active long session, and acknowledging impossible
+  Stop chronology without a lifecycle change could leave a session active forever.
+  The revised proposal protects active exact-match retries and marks invalid-time
+  stops interrupted with evidence preserved. Candidate review remains required.
+- 2026-10-17: Candidate explicitly approved the refined retry and invalid-time Stop
+  defaults and the plan (D-27). WP-1b implementation may proceed within that contract;
+  full scenario UI and production features remain outside this slice.
 - Future changes must state affected requirement IDs, old/new behavior, rationale,
   candidate agreement for material choices, and changed verification evidence.
 

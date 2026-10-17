@@ -1,8 +1,8 @@
 # WP-1a — deployable authorization slice
 
 Status: authorized after targeted discussion on 2026-10-17.
-Execution: implemented; local acceptance evidence is recorded in WORK.md. Candidate
-PR review/merge remains the completion gate. No dependent session work started.
+Execution: done; candidate manually merged PR #2 at 13:20:52 Europe/Berlin on
+2026-10-17 (`f81c3cf`). Acceptance/merge evidence is recorded in WORK.md.
 Branch: `codex/authorization-slice`, based on manually merged WP-0.
 This plan is disposable; [SPEC.md](../SPEC.md) owns behavior and
 [REQUIREMENTS.md](../REQUIREMENTS.md) owns acceptance traceability.
