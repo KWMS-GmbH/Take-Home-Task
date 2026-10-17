@@ -63,14 +63,54 @@ Use independent review agents where useful; they cannot approve decisions for th
 - Preserve original history. Branch names start with `codex/`.
 - Prefer a small number of coherent commits per package, with tests beside changes.
   Do not split by arbitrary line count or create a large unreviewable backend-only phase.
-- PRs explain the concrete change, decisions/risks, actual verification and limitations.
-  Link relevant work/requirement IDs. Keep routine descriptions short.
+- PRs are self-contained, layered review guides following the description contract
+  below. Keep the opening short, not the explanation of material behavior and risk.
 - No auto-merge or agent merge. Commits, pushes and PR creation are standing authority
   for agreed work once the readiness gate is met.
 - `origin` is the public `krebsni/Take-Home-Task` fork; `upstream` is KWMS.
   The candidate authorized publication to the fork on 2026-10-17. Target that fork
   explicitly for PRs. It remains public if upstream becomes private. Final submission
   access to KWMS is unresolved and tracked separately; the candidate contacts KWMS.
+
+## PR description contract
+
+The candidate requested this format after PR #2's short handoff note did not provide
+enough context for review or presentation preparation. Use
+`.github/pull_request_template.md` as the default. The PR is a snapshot/review guide
+for its actual diff, not a replacement specification: `SPEC.md` remains the living
+behavior contract, and `REQUIREMENTS.md` remains the original-requirement/evidence map.
+
+Each substantive implementation PR covers:
+
+1. **At a glance:** the problem, before/after outcome, where the whole application
+   stands now, and the most important exclusion. Make this independently scannable.
+2. **Business workflows:** actor/input, principal steps, observable result, and
+   important rejected/exceptional paths. Explain domain terms and distinguish a
+   protocol acknowledgment from an actual business outcome.
+3. **Technical walkthrough:** relevant components, data flow, transaction/state
+   boundaries, concurrency/retry behavior and failure handling. Explain important
+   mechanisms in plain language; a small diagram is useful when it clarifies the flow.
+4. **Decisions and trade-offs:** what was chosen, why, a meaningful alternative or
+   cost, and whether it comes from the brief, a candidate addition, or a derived
+   implementation choice. Link affected requirement/decision IDs without relying
+   on those links to explain the essentials.
+5. **Risks, open points and deferred scope:** separate implemented limitations from
+   unanswered questions and scheduled future work. State who/which package owns the
+   next action. Never describe future session/scaling/security behavior as delivered.
+6. **Evidence:** checks actually run, what invariants they prove, links to tests/CI,
+   and remaining verification gaps. Separate repeatable automation from observed
+   live browser QA; disclose material findings and fixes.
+7. **Review and presentation preparation:** suggested file-reading order, highest-risk
+   decisions to examine, a brief demo route, and concise answers to likely interview
+   questions. Candidate review and understanding remain required, not asserted by AI.
+
+Use expandable details for deeper walkthroughs/rehearsal notes so the opening stays
+quick to read. Size the detail to the change: a documentation-only update can simply
+say that application behavior is unchanged; do not fill sections with boilerplate.
+Links supplement a self-contained explanation rather than replacing it. Use actual
+repository links and keep the description aligned with the current PR head before
+every handoff, including amendments. No description change alters the immutable brief
+or authorizes a new behavior/assumption. Manual candidate merge remains the gate.
 
 ## Verification strategy
 
@@ -81,7 +121,7 @@ Use independent review agents where useful; they cannot approve decisions for th
 | Unit | Authorization decisions, time normalization, energy/quality and lifecycle rules | With the owning behavior |
 | Integration | Real PostgreSQL, HTTP contracts, OCPP framing/errors, atomic audit/replay, permission changes | Every affected package |
 | Scenario | Unmodified supplied runner plus independent API/DB postcondition assertions | Once the vertical slice supports scenarios |
-| Replica/failure | Explicit routing to different replicas, takeover/races, commit-before-reply failure, serialized migrations | WP-3 and later regression |
+| Replica/failure | Explicit replica routing, takeover/races, commit-before-reply failure, serialized migrations | WP-1a ownership/migration foundations; WP-3 extends charging/crash/load proof |
 | Deployment | Image builds, stack validation, clean single-node Swarm, startup ordering, secrets/network/volume/health | Deployment-affecting changes; final gate |
 | Browser | Live UI operation, auth gating, permission controls, actual scenario session results and visual clarity | UI milestones and final gate |
 
@@ -90,21 +130,24 @@ insufficient proof. Live browser QA complements repeatable regression tests and 
 be reported as observed evidence, not claimed as a checked-in browser test suite.
 No arbitrary test-count/coverage-percentage target. Prioritize meaningful invariants.
 
-Only commands that exist are advertised as runnable. WP-1 will establish container
-entrypoints for checks/tests; later packages extend them with scenario and stack checks.
-Automate CI where it proves behavior without adding unnecessary maintenance.
-
-Bootstrap checks available now:
+Only commands that exist are advertised as runnable. WP-1a established canonical
+container entrypoints; later packages extend the meaningful scenario/failure coverage.
+The repeatable gates now are:
 
 ```sh
 make verify-assignment
-make test-assignment-guard
+make check
+make test
+make smoke                     # requires an already deployed stack
 ```
 
-The guard itself needs only Git and a POSIX shell. Its regression tests additionally
-use Python's standard library and isolated temporary local Git clones. Run them with
-host `python3` during this bootstrap; WP-1 will include them in pinned container tooling.
-CI checkouts must retain the original baseline commit rather than fetching only HEAD.
+Deploy with `./deploy.sh` after one-time Swarm initialization; `make teardown` removes
+the project stack but preserves its database volume/secrets. CI runs check/test, creates
+a fresh Swarm and deploys/smoke-tests all three backend replicas.
+
+The guard itself needs only Git and a POSIX shell. Its 10 regression tests run inside
+`make check`/`make test`; `make test-assignment-guard` is also an optional host-Python
+stdlib shortcut. CI checkouts retain the original baseline commit, not only HEAD.
 
 ## Time and handoff
 

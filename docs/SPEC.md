@@ -157,7 +157,7 @@ values must be visibly distinct from zero or confirmed facts.
 - 2026-10-17: Candidate approved the WP-1a/WP-1b split, empty default database,
   one process/two listeners and three-replica foundations immediately (D-18–D-22).
 - WP-1a verification corrected missing SQLAlchemy async dependencies, secret stdin
-  creation, mutable local image references on redeploy, migration logging reset, and
+  creation, unchanged local image tags on redeploy, migration logging reset, and
   misleading UI connectivity/result context. These repairs preserve the approved behavior.
 - Supplied scenario 02 recomputes `$ts(-5m)` for each Stop. Its two payloads can
   differ by a second despite intending a duplicate; preserve the original fixture

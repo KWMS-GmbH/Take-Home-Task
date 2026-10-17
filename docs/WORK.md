@@ -173,8 +173,18 @@ commit, findings addressed, and remaining limitations at each gate.
 - WP-1a security check: pinned tooling `pip-audit --disable-pip --no-deps -r requirements.txt`
   reported no known vulnerabilities on 2026-10-17. This is not a container OS audit or
   a guarantee of security. Operational JSON events inspected without raw tags/frames.
-- WP-1a review repairs: corrected async SQLAlchemy extra, secret stdin, immutable image
-  rollout references, unused timeout variables, pool connect/finite bounds, migration
+- WP-1a review repairs: corrected async SQLAlchemy extra and secret stdin; replaced
+  unchanged local image tags with content-ID-derived tags for rollout; fixed unused
+  timeout variables, pool connect/finite bounds, migration
   logging reset, and misleading connectivity/result context. Remaining: sessions/scenarios,
   full crash/load proof, retention/pagination, production auth/TLS/backup/least-privilege
   roles, candidate comprehension review and final upstream submission access.
+- WP-1a review-guide amendment: the candidate found the original concise PR description
+  insufficient for understanding/review/presentation. PR #2 now uses a layered overview,
+  actual business/technical flows, decisions, risks/deferred work, evidence and a
+  review/demo/interview route. The default is persisted in AGENTS.md, WORKFLOW.md and
+  the GitHub PR template. Spec review: application behavior and original requirements
+  are unchanged; this is a documentation/workflow amendment, not dependent WP-1b work.
+  Independent review corrected image-tag/logging wording and stale workflow command
+  status; 17 repository links, expandable-section balance, whitespace/source guard
+  and unchanged-runtime diff checks pass. Current-head CI remains in PR Checks.
