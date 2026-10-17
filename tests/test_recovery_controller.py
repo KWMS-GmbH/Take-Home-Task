@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -25,18 +27,31 @@ case "$1" in
         exit 0 ;;
     compose)
         case "$*" in
-            *' build tooling') exit 0 ;;
+            *' build tooling')
+                "$FAKE_PYTHON" -c 'import json, os, pathlib, stat
+p=pathlib.Path(os.environ["RECOVERY_SECRET_FILE"])
+pathlib.Path(os.environ["FAKE_STATE"], "modes.json").write_text(json.dumps({
+    "secret": stat.S_IMODE(p.stat().st_mode),
+    "parent": stat.S_IMODE(p.parent.stat().st_mode)}))'
+                exit 0 ;;
             *' up --detach --wait --wait-timeout 35 db')
                 : > "$FAKE_STATE/db_created"; exit 0 ;;
             *' ps --all --quiet db') printf '%s\n' "$db_id"; exit 0 ;;
             *' run --detach --no-deps --name '* )
                 : > "$FAKE_STATE/checker_created"
-                printf '%s' "$RECOVERY_RUN_TOKEN" > "$RECOVERY_CONTROL_DIRECTORY/ready_to_stop"
+                if [ "$FAKE_CHECKER_STATE" = running ]; then
+                    printf '%s' "$RECOVERY_RUN_TOKEN" > "$RECOVERY_CONTROL_DIRECTORY/ready_to_stop"
+                fi
                 printf '%s\n' "$checker_id"; exit 0 ;;
         esac ;;
     inspect)
         for argument do target=$argument; done
         case "$*" in
+            *'{{ .State.Status }}'*)
+                if [ "$FAKE_PUBLISH_LATE" = 1 ]; then
+                    printf '%s' "$RECOVERY_RUN_TOKEN" > "$RECOVERY_CONTROL_DIRECTORY/ready_to_stop"
+                fi
+                printf '%s\n' "$FAKE_CHECKER_STATE"; exit 0 ;;
             *'{{ .Id }}'*)
                 case "$target" in
                     *_db) printf '%s\n' "$db_id"; exit 0 ;;
@@ -96,7 +111,12 @@ exit 99
 
 
 def run_controller(
-    tmp_path: Path, *, bad_at: int = 99, collision: str = ""
+    tmp_path: Path,
+    *,
+    bad_at: int = 99,
+    collision: str = "",
+    checker_state: str = "running",
+    publish_late: bool = False,
 ) -> tuple[subprocess.CompletedProcess[str], list[str], Path]:
     bin_directory = tmp_path / "bin"
     bin_directory.mkdir()
@@ -119,6 +139,9 @@ def run_controller(
         "FAKE_STATE": str(state),
         "FAKE_BAD_AT": str(bad_at),
         "FAKE_COLLISION": collision,
+        "FAKE_CHECKER_STATE": checker_state,
+        "FAKE_PYTHON": sys.executable,
+        "FAKE_PUBLISH_LATE": "1" if publish_late else "0",
     }
     result = subprocess.run(
         ["sh", str(ROOT / "scripts/test-recovery.sh")],
@@ -147,6 +170,33 @@ def test_recovery_controller_aborts_when_owned_database_guard_fails(
     assert not any(command.startswith("rm ") and "aaaaaaaa" in command for command in commands)
     if bad_at == 1:
         assert not any(" run --detach " in command for command in commands)
+    assert list(temporary.iterdir()) == []
+
+
+def test_recovery_secret_is_readable_inside_a_private_host_directory(tmp_path: Path) -> None:
+    result, _commands, temporary = run_controller(tmp_path)
+    assert result.returncode == 0, result.stderr
+    modes = json.loads((tmp_path / "state" / "modes.json").read_text())
+    assert modes == {"secret": 0o444, "parent": 0o700}
+    assert list(temporary.iterdir()) == []
+
+
+def test_recovery_controller_reports_checker_exit_before_outage(tmp_path: Path) -> None:
+    result, commands, temporary = run_controller(tmp_path, checker_state="exited")
+    assert result.returncode != 0
+    assert "exited before phase: ready_to_stop" in result.stderr
+    assert "timed out" not in result.stderr
+    assert not any(command.startswith("start ") for command in commands)
+    # The one stop is cleanup of the owned DB, not outage injection/restart.
+    assert sum(command.startswith("stop ") for command in commands) == 1
+    assert list(temporary.iterdir()) == []
+
+
+def test_recovery_controller_accepts_marker_published_before_observed_exit(tmp_path: Path) -> None:
+    result, _commands, temporary = run_controller(
+        tmp_path, checker_state="exited", publish_late=True
+    )
+    assert result.returncode == 0, result.stderr
     assert list(temporary.iterdir()) == []
 
 

@@ -59,3 +59,19 @@ findings were repaired before fault injection; WORK.md owns detailed evidence an
 limits. [KWMS PR #5](https://github.com/KWMS-GmbH/Take-Home-Task/pull/5) is published;
 current-head CI gates readiness and candidate manual review/merge remains. No
 dependent WP-4 implementation started.
+
+## Approved CI repair
+
+Candidate approved the proposed harness-only repair on 2026-10-17. CI at `f216a13`
+passed static checks and all 316 pytest tests, then timed out before `ready_to_stop`.
+Linux file-secret permissions are the leading cause; no DB outage was injected.
+
+1. Make only the generated disposable test secret readable by tooling UID 10001;
+   retain its private 0700 parent and read-only file-secret mount.
+2. Report configuration failures with exception type only, write a failure marker
+   only to a validated control/token scope, and fail early on an exact-owned checker
+   exiting before the required phase. Keep existing deadlines/ownership guards.
+3. Add permission/startup/exit regressions, run focused/static/full/recovery gates
+   and code/architecture review, update evidence, push and wait exact-head CI.
+4. Keep PR #5 draft until green; candidate alone reviews/merges. Production code,
+   secret handling and charging/session semantics remain unchanged by this repair.

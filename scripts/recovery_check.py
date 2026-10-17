@@ -43,14 +43,19 @@ TABLES = (
 )
 
 
-def configuration() -> tuple[Settings, Path, str]:
-    """No caller-supplied database URL or control target is accepted here."""
+def control_scope() -> tuple[Path, str]:
+    """Validate scope before any failure marker can be written."""
     token = os.environ.get("RECOVERY_RUN_TOKEN", "")
     if re.fullmatch(r"kwms_recovery_[a-z0-9]{8}_[0-9]+", token) is None:
         raise ValueError("explicit generated recovery token required")
     control = Path(os.environ.get("RECOVERY_CONTROL_DIRECTORY", ""))
     if control != Path("/control") or not control.is_dir():
         raise ValueError("only the isolated /control mount is accepted")
+    return control, token
+
+
+def configuration(token: str) -> Settings:
+    """Only the generated secret and fixed isolated database are accepted."""
     password = Path("/run/secrets/recovery_db_password").read_text(encoding="utf-8")
     if password != token:
         raise ValueError("recovery secret/token mismatch")
@@ -64,7 +69,7 @@ def configuration() -> tuple[Settings, Path, str]:
     ).render_as_string(hide_password=False)
     parsed = make_url(url)
     assert parsed.host == "db" and parsed.database == "charging_recovery_test"
-    return Settings(database_url=url, instance_id="recovery-0"), control, token
+    return Settings(database_url=url, instance_id="recovery-0")
 
 
 def signal(control: Path, token: str, phase: str) -> None:
@@ -282,13 +287,20 @@ async def run(settings: Settings, control: Path, token: str) -> None:
 
 
 async def main() -> None:
-    settings, control, token = configuration()
+    control = None
+    token = ""
     try:
+        control, token = control_scope()
+        settings = configuration(token)
         async with asyncio.timeout(90):
             await run(settings, control, token)
     except BaseException as exc:
-        signal(control, token, "failed")
         print(f"FAIL: recovery checker {type(exc).__name__}", flush=True)
+        if control is not None:
+            try:
+                signal(control, token, "failed")
+            except OSError:
+                print("FAIL: recovery checker failure marker unavailable", flush=True)
         raise
 
 

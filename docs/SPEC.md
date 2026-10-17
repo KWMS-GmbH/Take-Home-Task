@@ -218,6 +218,13 @@ second session. Passing this remains mandatory even if ordinary UI runs are seri
   test database/project/container identities before stop/remove. Teardown deletes
   only this generated test project/volume. No claim of abrupt PostgreSQL/host loss,
   exhaustive outage timing, network-blackhole deadlines or HA.
+- Candidate approved the harness-only CI repair after Linux startup failed before
+  fault injection: the temporary Compose file secret must be readable by the
+  unprivileged tooling UID, inside its private host directory. Production Swarm
+  secrets are unchanged. Configuration errors expose only a sanitized exception
+  type; emit a failure marker only after validating control/token scope. Detect
+  an exact-owned checker that exits before its expected marker instead of waiting
+  for the phase deadline. Add regressions; do not mask the issue with longer waits.
 
 **Bounded operation**
 

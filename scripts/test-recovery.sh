@@ -37,7 +37,10 @@ mkdir "$recovery_directory/control"
 # needs to be writable by the unprivileged container app uid and host controller.
 chmod 777 "$recovery_directory/control"
 printf '%s' "$recovery_token" >"$recovery_directory/db_password"
-chmod 600 "$recovery_directory/db_password"
+# Compose file secrets are read-only bind mounts, not Swarm secret objects: on
+# Linux their host ownership/mode remain. Tooling runs as uid 10001, not the host
+# runner's uid. The 0700 parent still excludes other host users from this test file.
+chmod 444 "$recovery_directory/db_password"
 export RECOVERY_RUN_TOKEN="$recovery_token"
 export RECOVERY_VOLUME_NAME="$recovery_volume"
 export RECOVERY_CONTROL_DIRECTORY="$recovery_directory/control"
@@ -194,6 +197,23 @@ marker() {
             printf '%s\n' 'ERROR: recovery checker failed; see its bounded evidence below.' >&2
             return 1
         fi
+        if ! safe_container "$recovery_checker_id" tooling || ! bounded 5 docker inspect \
+            --type container --format '{{ .State.Status }}' "$recovery_checker_id"; then
+            printf '%s\n' 'ERROR: recovery checker state could not be verified.' >&2
+            return 1
+        fi
+        case "$(cat "$recovery_log")" in
+            running|created) ;;
+            *)
+                # It may publish its final marker between the loop check and
+                # exiting. Recheck before declaring an early-exit failure.
+                if [ ! -f "$RECOVERY_CONTROL_DIRECTORY/$recovery_marker" ]; then
+                    printf 'ERROR: recovery checker exited before phase: %s\n' \
+                        "$recovery_marker" >&2
+                    return 1
+                fi
+                ;;
+        esac
         if [ "$recovery_waited" -ge "$recovery_limit" ]; then
             printf 'ERROR: recovery checker phase timed out: %s\n' "$recovery_marker" >&2
             return 1
