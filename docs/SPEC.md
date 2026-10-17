@@ -1,6 +1,7 @@
 # Charging Session Service — living specification
 
-Status: foundation approved by the candidate (`lgtm`), 2026-10-17. No application behavior is implemented yet.
+Status: foundation approved; WP-1a implementation authorized, 2026-10-17.
+Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
 [REQUIREMENTS.md](REQUIREMENTS.md), execution status in [WORK.md](WORK.md), and
@@ -62,6 +63,11 @@ the supplied runner's warning/failure count alone.
 | D-15 | Use versioned database migrations, serialized across replica startup. Fix the external protocol at `ocpp1.6`. Multiple internal HTTP API versions and full zero-downtime migration machinery are deferred; document compatibility during rolling upgrades. |
 | D-16 | Publish frontend HTTP and required OCPP ingress; keep database and management API internal. Use separate ingress/listener boundaries so publishing the WebSocket port cannot expose management routes accidentally. |
 | D-17 | Execute each supplied scenario and obtain its actual transaction IDs from the recorded responses, then fetch those sessions through the API. An application adapter may interpret results; the original replay tool and scenarios remain unchanged. |
+| D-18 | Split WP-1 into independently reviewed PRs: WP-1a station/tag/permission management plus Boot/Authorize, then WP-1b charging/session happy path. WP-1b begins after WP-1a's manual merge. |
+| D-19 | A fresh deployment creates an empty database; redeployment preserves existing data. Demo data is an explicit idempotent API operation; normal teardown preserves the volume. Destructive reset is separate and never implicit. |
+| D-20 | One asynchronous backend process hosts internal HTTP on port 8000 and OCPP-only WebSockets on port 9000, sharing the application service/database pool. |
+| D-21 | Declare three backend replicas from WP-1a. Build fencing, bounded pools, atomic audit, database constraints and serialized migrations now; WP-3 extends failure proof and tuning. U-SCALE remains pending until its acceptance tests pass. |
+| D-22 | Raw accepted connect registers the station and allocates a pending generation. Its first valid supported OCPP call promotes ownership; no Boot-first requirement is added and garbage alone cannot evict an owner. Every mutation checks database ownership. |
 
 These are derived choices, not claims that KWMS specified every mechanism.
 
@@ -76,6 +82,43 @@ duration, and energy. Provide a station-filtered sessions list. Unknown/provisio
 values must be visibly distinct from zero or confirmed facts.
 
 ## Proposed mechanics — review within the owning work package
+
+### WP-1a accepted boundary
+
+- Implement Boot and Authorize for this PR. Other actions return protocol errors
+  until their owning slice; charging/session completion is not claimed.
+- Create/list stations and tags, toggle permissions, and check real OCPP authorization
+  from the Flask UI through the unchanged provided helper. Empty data is explicit.
+- Filter raw extras before library name conversion; retain request/output validation.
+  Correlatable errors get CALLERROR; malformed JSON must not poison later valid calls.
+- Same-connection replay uses `(connection UUID, uniqueId)` and canonical relevant
+  payload. Exact retries return the recorded response; conflicts are audited/rejected.
+  New-connection Authorize always reads current permission. Charging retries remain Q-01.
+- Domain mutation, audit and replayable response share a short transaction; validate
+  the response before commit and send after releasing the database connection.
+- Initial configurable database bounds: pool 5 per replica, overflow 0, acquisition
+  timeout 2 seconds, lock timeout 1 second, statement timeout 3 seconds. Validate
+  these defaults rather than claiming production capacity. Bound transport/work too.
+- Default frontend URL `http://localhost:8080`; publish only frontend and OCPP ingress.
+- Flask POSTs use CSRF tokens, escaped templates, bounded body sizes and backend
+  timeouts. Frontend login remains out of scope as allowed by the assignment.
+- Compatibility established with `ocpp==2.1.0`: use public `Call` and schema APIs
+  directly, with the narrow raw-name filter, rather than inherit its full dispatcher.
+  Both request and pre-commit response validation remain enabled. Exact runtime/test
+  versions and hashes are in the lockfiles; Python/PostgreSQL image digests are pinned.
+- Initial transport bounds per replica: 128 connections, 64 KiB text frames, queue 8,
+  20 messages/s with burst 40 per socket, 10,000 calls per connection, 300s idle timeout.
+  These are demo bounds, not production sizing or fleet-wide DDoS protection.
+- Operator-created IDs use URL-safe letters/digits plus `. _ : -`, starting with a
+  letter/digit, max 64 station/20 tag characters. OCPP Authorize still accepts the
+  library's broader string contract; schema-valid unknown tags return Invalid.
+- The UI preserves and labels the checked station/tag beside its result. A stored
+  ownership generation is not presented as proof that a socket is currently online.
+- Existing ownership is fenced immediately on valid takeover; a stale physical socket
+  closes on its next valid supported request, not by a cross-process close broadcast.
+  Audit/inbox retention, larger fleets and comprehensive failure/load proof remain later work.
+
+### Remaining mechanics
 
 - PostgreSQL connection generations/fencing, row locks and a partial unique index
   enforce ownership and connector invariants. Define takeover at a validated
@@ -98,7 +141,7 @@ values must be visibly distinct from zero or confirmed facts.
 | Q-01 | Define same-connection replay/conflict behavior and bounded cross-connection retry recognition, particularly Start. New connections may legally reuse IDs. Do not cache fresh authorization or Boot responses on an eternal station/ID key. | WP-2, WP-3 |
 | Q-02 | Prove library adapter behavior for arbitrary extra fields, raw-name collisions (`callUniqueId`/`call_unique_id`, `connectorId`/`connector_id`), malformed input, and output validation. Pin or reject the evaluated library based on evidence. | WP-1 |
 | Q-03 | Decide response to a fresh Start on an already-active connector, out-of-order meter samples, invalid time ordering, and unknown transaction references. Define how conflicting stops for an already-completed session are reported/audited while preserving D-12's first established result. | WP-2 |
-| Q-04 | Fix ownership-promotion and stale-socket behavior, migration execution, pool budget, timeouts, and load limits; prove the three-replica behavior. | WP-3 |
+| Q-04 | Implement D-21/D-22 and initial bounds in WP-1a; extend stale-socket/crash/load proof and tune limits in WP-3. | WP-1a, WP-3 |
 | Q-05 | Define audit-event fields/retention, diagnostic redaction and rotation, and reliable scenario result extraction, without logging unbounded attacker-controlled data. | WP-2, WP-3 |
 | Q-06 | Resolve access/final submission to the KWMS repository. The candidate has separately authorized routine project PR publication to the public fork; that workflow is not blocked on KWMS access. | Candidate |
 
@@ -111,6 +154,11 @@ values must be visibly distinct from zero or confirmed facts.
   the gate. This changes workflow ownership, not application behavior.
 - Source review corrected an initial proposal for permanent `(station, uniqueId)`
   deduplication. OCPP-J 1.6 §4.1.4 only guarantees sender/connection uniqueness.
+- 2026-10-17: Candidate approved the WP-1a/WP-1b split, empty default database,
+  one process/two listeners and three-replica foundations immediately (D-18–D-22).
+- WP-1a verification corrected missing SQLAlchemy async dependencies, secret stdin
+  creation, mutable local image references on redeploy, migration logging reset, and
+  misleading UI connectivity/result context. These repairs preserve the approved behavior.
 - Supplied scenario 02 recomputes `$ts(-5m)` for each Stop. Its two payloads can
   differ by a second despite intending a duplicate; preserve the original fixture
   and assert transaction-level idempotency instead of assuming identical bytes.

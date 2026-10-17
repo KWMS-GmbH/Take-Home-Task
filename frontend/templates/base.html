@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>{% block title %}Charge control{% endblock %} · Gridline</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="{{ url_for('dashboard') }}" aria-label="Gridline dashboard">
+        <span class="brand-mark" aria-hidden="true">↯</span>
+        <span>
+          <strong>Gridline</strong>
+          <small>Charge operations</small>
+        </span>
+      </a>
+      <div class="phase-pill"><span></span> Authorization slice</div>
+    </header>
+
+    <main id="main-content" class="page-shell">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-stack" aria-live="polite">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      Internal operator demo · Management travels through the backend API only
+    </footer>
+  </body>
+</html>

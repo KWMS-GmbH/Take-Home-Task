@@ -1,0 +1,12 @@
+# Runtime dependencies. Exact versions and artifact hashes live in requirements.txt.
+alembic
+fastapi
+Flask
+Flask-WTF
+gunicorn
+httpx
+ocpp==2.1.0
+psycopg[binary]
+SQLAlchemy[asyncio]
+uvicorn
+websockets>=13
