@@ -56,6 +56,7 @@ def migrated_database(test_settings: Settings) -> Iterator[None]:
             connection.execute(
                 text(
                     "DROP TABLE IF EXISTS "
+                    "simulation_slots, "
                     "meter_evidence, connector_status, charging_sessions, "
                     "ocpp_inbox, audit_events, permissions, id_tags, stations, "
                     "alembic_version CASCADE"
@@ -117,6 +118,17 @@ def migrated_database(test_settings: Settings) -> Iterator[None]:
                 assert connection.execute(text(f"SELECT count(*) FROM {table}")).scalar_one() == 0
     finally:
         empty_engine.dispose()
+    coordination_engine = create_engine(test_settings.database_url)
+    try:
+        with coordination_engine.connect() as connection:
+            assert connection.execute(
+                text(
+                    "SELECT slot, primary_station_id, token, expires_at "
+                    "FROM simulation_slots ORDER BY slot"
+                )
+            ).all() == [(1, None, None, None), (2, None, None, None)]
+    finally:
+        coordination_engine.dispose()
     yield
 
 
@@ -131,11 +143,18 @@ async def database_context(
     async with engine.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE TABLE meter_evidence, connector_status, charging_sessions, "
-                "ocpp_inbox, audit_events, permissions, id_tags, "
-                "stations RESTART IDENTITY CASCADE"
+                "UPDATE simulation_slots "
+                "SET primary_station_id = NULL, token = NULL, expires_at = NULL"
             )
         )
+        await connection.execute(
+            text(
+                "TRUNCATE TABLE meter_evidence, connector_status, charging_sessions, "
+                "ocpp_inbox, audit_events, permissions, id_tags "
+                "RESTART IDENTITY"
+            )
+        )
+        await connection.execute(text("DELETE FROM stations"))
     context = DatabaseContext(engine=engine, sessions=get_session_factory(engine))
     try:
         yield context

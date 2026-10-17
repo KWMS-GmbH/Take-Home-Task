@@ -4,19 +4,18 @@ Interview take-home for KWMS. The original assignment and supplied replay toolin
 remain unchanged in [take-home/](take-home/). Submission deadline: Sunday,
 2026-10-18, 21:00 Europe/Berlin; our safety target is 18:00.
 
-## Current milestone: WP-1b
+## Current milestone: WP-2 scenario experience
 
-Manage station/tag permissions, check real OCPP authorization, and inspect durable
-charging sessions through Flask. All six required actions are handled; sessions keep
-lifecycle, authorization-at-start and meter quality separate. Three backend replicas
-share PostgreSQL state and enforce connection ownership there.
+Manage station/tag permissions, check real OCPP authorization, run all eight supplied
+scenarios, and inspect their actual API session data through Flask. Protocol and
+session-data outcomes are checked separately. Sessions keep lifecycle,
+authorization-at-start and meter quality separate; three backend replicas share
+PostgreSQL state and enforce connection ownership there.
 
-**Not yet a complete submission:** the full browser scenario runner, per-scenario
-results/correlation and comprehensive failure/load/retention proof remain WP-2/WP-3.
-The unchanged happy-path scenario is already an automated API/database acceptance
-test, not yet a browser simulation button. The [work board](docs/WORK.md)
-and [requirement matrix](docs/REQUIREMENTS.md) distinguish completed evidence from
-remaining work.
+**Not yet a complete submission:** broader concurrent charging/crash/load/retention
+proof remains WP-3, and independent final acceptance remains WP-4. The
+[work board](docs/WORK.md) and [requirement matrix](docs/REQUIREMENTS.md) distinguish
+implemented behavior, observed evidence and remaining work.
 
 ## Deploy on a single-node Swarm
 
@@ -34,9 +33,9 @@ Open [http://localhost:8080](http://localhost:8080). A fresh volume is empty: ad
 station and tag, allow their permission, then use **Check authorization**. Known tags
 without permission are Blocked; unknown tags are Invalid. Changes apply to the next
 fresh request, without a restart. Open **Sessions** for station-filtered history
-and transaction details. A fresh database has no sessions until a simulated station
-creates them; `make smoke` automatically creates a complete CHECK-CP/CHECK-TAG
-10.0 kWh example. Optional sample records:
+and transaction details, or open **Simulate** to run the supplied cases. A fresh
+database has no sessions until a simulated station creates them. Optional setup and
+sample records:
 
 ```sh
 make demo-data                    # explicit, idempotent CP-001 / TAG-42 / TAG-BLOCKED
@@ -64,8 +63,9 @@ currently connected socket; an incomplete session has no invented final duration
 | DEMO-BLOCKED | Interrupted, Blocked: suspicious non-numeric reading, energy/duration unknown, not eligible |
 | DEMO-UNKNOWN | Active, Invalid tag: meter quality/energy/duration unknown, not eligible |
 
-These are review examples of existing rules, not the full supplied-scenario UI or
-new lifecycle/quality labels. Custom examples do not replace original scenario tests.
+These are custom review examples of existing rules, not new lifecycle/quality labels
+or substitutes for supplied-scenario acceptance. Keep their reserved station IDs
+separate from scenario runs, whose deliberate Boots can change open sessions.
 
 Redeploy with `./deploy.sh`; existing data and secrets are reused. Do not delete the
 database volume or rotate its password secret independently: the initialized database
@@ -73,13 +73,63 @@ keeps its existing password. `STACK_NAME=other ./deploy.sh` changes resource nam
 not published ports; two copies cannot share ports 8080/9000. Teardown never leaves
 Swarm or removes unrelated Docker resources.
 
+## Run scenarios in the browser
+
+Open [Simulate](http://localhost:8080/simulation). Select an existing station, an
+allowed tag and a different blocked or unknown tag. `make demo-data` provides
+CP-001, TAG-42 and TAG-BLOCKED for this purpose. Acknowledge the Boot/connection
+side effects, then submit. The simulator runs **server-side in the Flask container**:
+Python opens real OCPP WebSockets; the browser submits the form and displays results.
+
+Both tags are checked afresh over Authorize-only connections. The primary must be
+Accepted, and the second explicitly Blocked or Invalid. Otherwise no scenario runs;
+the application never grants/revokes permissions to make a test pass. Permission
+changes during execution remain effective and may cause a visible failure.
+
+Each scenario shows protocol results/warnings, its original check lines, collapsible
+automated data checks and exchanges, and exact transaction-linked API snapshots.
+Snapshots are fetched immediately after each case, before later Boots; the current
+session-detail link can therefore show a later state. Execution completed means the
+scenario finished, not that its charging session completed: reboot-without-Stop
+correctly shows an interrupted session with provisional/unknown energy and duration.
+API checks do not prove internal audit-row counts; real-PostgreSQL tests check those
+separately. Missing API evidence is unverified, never a data pass.
+
+The adapter uses the eight fixed original JSON files in filename order and public
+replay call/raw helpers. Source files remain byte-for-byte unchanged. Relative times
+are rendered from one stable UTC instant per case, preserving offsets; successive
+case starts are spaced by at least 1.1 seconds and a run waits past recent Start
+receipt when necessary. This prevents whole-second timestamps from accidentally
+making distinct cases look like exact Start retries. Unlike the unchanged CLI's
+per-message clock rendering, intended duplicate payloads stay identical within a
+browser case. This is an explicit orchestration adaptation, not weakened retry rules
+or a modification to the supplied fixtures.
+
+PostgreSQL admission allows two runs globally and one run over each scope containing
+the selected station **and its exact `<station>-OTHER` identity** used by scenario 07.
+Overlapping scopes are rejected. Simulation base IDs are limited to 58 characters so
+the unchanged suffix fits the normal 64-character station limit. A 30-second lease
+and station-locked token checks fence expired/reassigned simulated sockets. The
+`X-Simulation-Token` header coordinates our runner; it is **not authentication** and
+does not prevent ordinary OCPP clients from interfering. Boots can interrupt existing
+sessions on either identity; new connections can fence older sockets there.
+
+The async run has a 20-second execution deadline, including admission, preflight,
+spacing, scenarios and normal API snapshots. It is not a 20-second end-to-end HTTP
+promise: initial form metadata requests and bounded cleanup/partial-data collection
+also take time. Interrupted execution/deadlines retain bounded partial evidence and
+mark later cases not run; completed cases can show failed/unverified checks while
+execution continues. Reports exist only in that response, not cookies or a durable report archive;
+reloading/reposting can start another run. Committed sessions/audit remain even when
+the report fails or times out. There is no background queue, resume engine or undo.
+
 ## Automated verification
 
 ```sh
 make verify-assignment            # byte-for-byte baseline guard, Git + shell only
 make check                        # container: guard tests, format, lint, types, config
 make test                         # container: unit + isolated real-PostgreSQL integration
-make smoke                        # against deployed stack; creates CHECK-CP / CHECK-TAG
+make smoke                        # deployed stack: three replicas + full scenario UI flow
 ```
 
 `make test` uses an isolated Compose project and a disposable PostgreSQL tmpfs. It
@@ -90,11 +140,14 @@ postconditions, not merely protocol responses. Test resources are removed afterw
 `make smoke` addresses all three actual backend tasks explicitly, checks UI forms and
 CSRF, shared permission updates, stale fencing, the UI's real Authorize-only probe,
 an active session surviving that takeover, and completion via another actual replica.
-It checks API-backed session list/detail views and leaves its named verification
-records and completed session in the deployed database. Live browser visual QA is a
-separate recorded review, not a claimed
-checked-in browser automation suite. CI runs static/PostgreSQL checks, deploys an
-ephemeral Swarm and runs the three-replica smoke test.
+It submits the real simulation form, verifies all eight protocol/data results and
+eight distinct API-linked sessions, and checks that a denied primary tag creates no
+scenario sessions. It creates/reuses CHECK-CP, CHECK-CP-OTHER, CHECK-TAG and
+CHECK-BLOCKED, leaves the primary allowed and secondary blocked, and retains its
+verification sessions. It does not touch the reserved DEMO-* examples. Live browser
+visual QA is a separate recorded review, not a claimed checked-in browser automation
+suite. CI runs static/PostgreSQL checks, deploys an ephemeral Swarm and runs this smoke
+test.
 
 ## Architecture and reliability
 
@@ -132,7 +185,7 @@ retries transient database failures; health/restart policies do not rely on Swar
 
 Running `docker service scale kwms_backend=3` is already the default. Shared
 permissions, database fencing and serialized migrations are built in now. Full
-charging races, crash/retry proofs and load tuning remain WP-2/WP-3, so this is not
+charging races, crash/retry proofs and load tuning remain WP-3, so this is not
 yet a claim that the complete application is three-replica verified. The single-node
 host and single PostgreSQL instance remain failure domains; a volume is not a backup.
 Multi-node deployment additionally needs shared image distribution, database/storage
@@ -166,12 +219,13 @@ stop time/duration/final energy; a later admissible Stop can correct it. Establi
 completions do not change when duplicate/conflicting Stops or late meter evidence
 arrive; late evidence remains in PostgreSQL/audit, not a repeated completion effect.
 
-The UI permission check sends **Authorize only**. The supplied `replay.authorize()`
-convenience helper sends Boot first, which would incidentally interrupt an existing
-session under our reboot policy. Only our UI helper use is replaced; supplied files
-and deliberate scenario Boots remain unchanged. The original CLI helper therefore
-still sends Boot. This adapter is allowed by BRIEF line 179 and preserves its required
-Authorize-before-scenarios workflow; full scenario UI is the next slice.
+The UI permission check and simulator preflight send **Authorize only**. The supplied
+`replay.authorize()` convenience helper sends Boot first, which would incidentally
+interrupt an existing
+session under our reboot policy. Our UI uses an adapter; supplied files and deliberate
+scenario Boots remain unchanged. The original CLI helper therefore still sends Boot.
+This adaptation is allowed by BRIEF line 179 and preserves its required
+Authorize-before-scenarios workflow.
 
 **Shared station ID caveat:** even Authorize-only promotes the probe's connection,
 including Blocked/Invalid outcomes. The previous socket remains fenced after the
@@ -179,7 +233,8 @@ probe closes and must reconnect. This must not itself interrupt a charging sessi
 Use different station IDs for independent simulations; this is not passive monitoring
 or authenticated station identity. Scenario 07's overlapping-connection, one completed
 3.0 kWh requirement is not exempted: unchanged scenario 07 has passing automated
-API/DB acceptance. The all-scenario browser experience remains tracked in the matrix.
+API/DB acceptance and a visible browser result. Coordinated browser runs exclude
+overlapping scopes, but that does not exclude external devices/probes using those IDs.
 
 `START_RETRY_SECONDS=86400 ./deploy.sh` configures the post-transition Start grace
 (1–604800 seconds); active exact-match protection and Stop idempotency are separate.
@@ -198,14 +253,18 @@ the brief. Use only a trusted local demo environment: published Swarm ports are 
 guaranteed localhost-only. Public deployment needs TLS,
 operator authentication/roles, station credentials, secure cookies, perimeter rate
 limits, least-privilege database roles and backups. Publishing OCPP does not expose
-management HTTP routes.
+management HTTP routes. Simulation admission is resource coordination, not operator
+or station identity verification; an unauthenticated trusted-network user can still
+operate the demo and trigger its documented Boot effects.
 
 Initial transport limits per replica: 128 sockets; 20 messages/s with a 40-message
 burst per socket; 10,000 requests per connection; 300s idle timeout. These are bounded
 demo defaults, not measured production capacity or DDoS protection. Invalid JSON does
-not acquire ownership or poison later valid requests. Socket/audit/inbox retention,
-fleet pagination and broader load proof remain tracked work. Session history itself
-persists; the Start retry window is not a database retention/deletion policy.
+not acquire ownership or poison later valid requests. Simulation work has separate
+lease/deadline/frame/text bounds, without a background worker service. Broader
+crash/load proof, audit/inbox retention and fleet pagination remain tracked work.
+Session history itself persists; the Start retry window is not a database
+retention/deletion policy.
 
 Business audit is durable PostgreSQL history; unauthenticated HTTP changes identify
 only an `anonymous_operator` role, not a person. Application events are JSON-structured;
@@ -219,7 +278,8 @@ central durable log collection is not included.
 
 The [living spec](docs/SPEC.md) records decisions for all nine messy cases and open
 questions. Implementation/acceptance status is tracked separately; direct regression
-tests do not claim all supplied scenarios or failure modes are already proven. [Workflow](docs/WORKFLOW.md) defines
-spec-first packages, growing tests, independent code/architecture review and candidate
+tests cover the required supplied-scenario outcomes but do not claim every failure
+mode is proven. [Workflow](docs/WORKFLOW.md) defines spec-first packages, growing tests,
+independent code/architecture review and candidate
 manual PR merges. [AI_USAGE](AI_USAGE.md) and the [effort ledger](docs/TIME_LOG.md)
 disclose assistance, corrections and observed time without inventing human effort.

@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from . import charging
+from . import charging, simulation
 from .domain import session_view
 from .errors import AlreadyExists as AlreadyExists
 from .errors import DependencyUnavailable as DependencyUnavailable
@@ -174,43 +174,77 @@ class Service:
         return DependencyUnavailable("database operation unavailable")
 
     async def register_connection(
-        self, station_id: str, connection_id: str, instance_id: str
+        self,
+        station_id: str,
+        connection_id: str,
+        instance_id: str,
+        *,
+        simulation_token: str | None = None,
     ) -> int:
         """Make the station visible immediately and allocate a fencing generation."""
 
         station_id = validate_station_id(station_id)
         connection_uuid = _connection_uuid(connection_id)
         self._validate_instance(instance_id)
+        simulation_uuid = (
+            simulation.token_uuid(simulation_token) if simulation_token is not None else None
+        )
+        generation: int | None = None
         try:
             async with self._session_factory() as session:
                 async with session.begin():
-                    await session.execute(
-                        pg_insert(Station)
-                        .values(id=station_id)
-                        .on_conflict_do_nothing(index_elements=[Station.id])
-                    )
+                    inserted = (
+                        await session.execute(
+                            pg_insert(Station)
+                            .values(id=station_id)
+                            .on_conflict_do_nothing(index_elements=[Station.id])
+                            .returning(Station.id)
+                        )
+                    ).scalar_one_or_none() is not None
                     station = (
                         await session.execute(
                             select(Station).where(Station.id == station_id).with_for_update()
                         )
                     ).scalar_one()
-                    before_generation = station.next_generation
-                    station.next_generation += 1
-                    station.updated_at = _utc_now()
-                    generation = station.next_generation
-                    session.add(
-                        _audit(
-                            actor="charge_point",
-                            source="ocpp",
-                            kind="connection_registered",
-                            instance_id=instance_id,
-                            station_id=station_id,
-                            connection_id=connection_uuid,
-                            action="Connect",
-                            before={"nextGeneration": before_generation},
-                            after={"generation": generation},
+                    if simulation_uuid is not None and not await simulation.valid_token(
+                        session, station_id, simulation_uuid
+                    ):
+                        # Do not create an unrelated station merely because a stale run
+                        # attempted to connect. Still retain a bounded rejection audit.
+                        if inserted:
+                            await session.delete(station)
+                        session.add(
+                            _audit(
+                                actor="charge_point",
+                                source="ocpp",
+                                kind="simulation_token_rejected",
+                                instance_id=instance_id,
+                                station_id=None if inserted else station_id,
+                                connection_id=connection_uuid,
+                                action="Connect",
+                                after={"stationId": station_id},
+                            )
                         )
-                    )
+                    else:
+                        before_generation = station.next_generation
+                        station.next_generation += 1
+                        station.updated_at = _utc_now()
+                        generation = station.next_generation
+                        session.add(
+                            _audit(
+                                actor="charge_point",
+                                source="ocpp",
+                                kind="connection_registered",
+                                instance_id=instance_id,
+                                station_id=station_id,
+                                connection_id=connection_uuid,
+                                action="Connect",
+                                before={"nextGeneration": before_generation},
+                                after={"generation": generation},
+                            )
+                        )
+            if generation is None:
+                raise StaleConnection("simulation lease expired or no longer owns this station")
             return generation
         except SQLAlchemyError as exc:
             raise self._dependency(exc) from exc
@@ -225,6 +259,8 @@ class Service:
         action: str,
         payload: Mapping[str, Any],
         response_validator: ResponseValidator,
+        *,
+        simulation_token: str | None = None,
     ) -> dict[str, Any]:
         """Apply one supported OCPP call and durably retain its validated response."""
 
@@ -233,6 +269,9 @@ class Service:
             raise ValidationError("generation must be a positive integer")
         connection_uuid = _connection_uuid(connection_id)
         self._validate_instance(instance_id)
+        simulation_uuid = (
+            simulation.token_uuid(simulation_token) if simulation_token is not None else None
+        )
         unique_id = _unique_id(unique_id)
         normalized = _normalize_payload(action, payload)
         digest = _payload_hash(normalized)
@@ -251,7 +290,11 @@ class Service:
                         raise NotFound(f"station does not exist: {station_id}")
 
                     stale_reason: str | None = None
-                    if generation > station.next_generation:
+                    if simulation_uuid is not None and not await simulation.valid_token(
+                        session, station_id, simulation_uuid
+                    ):
+                        stale_reason = "simulation lease expired or no longer owns this station"
+                    elif generation > station.next_generation:
                         stale_reason = "connection generation was not registered"
                     elif generation < station.active_generation:
                         stale_reason = "connection was superseded"
@@ -266,7 +309,10 @@ class Service:
                             _audit(
                                 actor="charge_point",
                                 source="ocpp",
-                                kind="stale_connection_rejected",
+                                kind="simulation_token_rejected"
+                                if simulation_uuid is not None
+                                and stale_reason.startswith("simulation lease")
+                                else "stale_connection_rejected",
                                 instance_id=instance_id,
                                 station_id=station_id,
                                 connection_id=connection_uuid,
@@ -494,6 +540,59 @@ class Service:
             ).scalar_one_or_none()
             status = "Accepted" if enabled is True else "Blocked"
         return status
+
+    async def acquire_simulation_lease(self, station_id: str) -> dict[str, str]:
+        station_id = validate_station_id(station_id)
+        if len(station_id) > 58:
+            raise ValidationError("simulation station id must contain at most 58 characters")
+        try:
+            async with self._session_factory() as session:
+                async with session.begin():
+                    station = await session.scalar(
+                        select(Station).where(Station.id == station_id).with_for_update()
+                    )
+                    if station is None:
+                        raise NotFound("station does not exist")
+                    result = await simulation.acquire(session, station_id)
+                    session.add(
+                        _audit(
+                            actor="anonymous_operator",
+                            source="http",
+                            kind="simulation_lease_acquired",
+                            instance_id=self._instance_id,
+                            station_id=station_id,
+                            after={"expiresAt": result["expiresAt"]},
+                        )
+                    )
+            return result
+        except SQLAlchemyError as exc:
+            raise self._dependency(exc) from exc
+
+    async def release_simulation_lease(self, station_id: str, token: str) -> dict[str, bool]:
+        station_id = validate_station_id(station_id)
+        simulation_uuid = simulation.token_uuid(token)
+        try:
+            async with self._session_factory() as session:
+                async with session.begin():
+                    station = await session.scalar(
+                        select(Station).where(Station.id == station_id).with_for_update()
+                    )
+                    if station is None:
+                        raise NotFound("station does not exist")
+                    released = await simulation.release(session, station_id, simulation_uuid)
+                    if released:
+                        session.add(
+                            _audit(
+                                actor="anonymous_operator",
+                                source="http",
+                                kind="simulation_lease_released",
+                                instance_id=self._instance_id,
+                                station_id=station_id,
+                            )
+                        )
+            return {"released": released}
+        except SQLAlchemyError as exc:
+            raise self._dependency(exc) from exc
 
     async def list_sessions(
         self, station_id: str, *, limit: int = 100, before: int | None = None

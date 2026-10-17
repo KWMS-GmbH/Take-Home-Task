@@ -73,6 +73,20 @@ class PermissionResult(StrictModel):
     enabled: bool
 
 
+class SimulationLeaseResult(StrictModel):
+    token: str
+    expiresAt: str
+    notBefore: str
+
+
+class SimulationLeaseRelease(StrictModel):
+    token: Annotated[str, StringConstraints(strict=True, min_length=1, max_length=36)]
+
+
+class SimulationReleaseResult(StrictModel):
+    released: bool
+
+
 class SessionResult(StrictModel):
     transactionId: int
     stationId: str
@@ -164,6 +178,22 @@ def create_app(
         station_id: StationId, id_tag: IdTagValue, body: PermissionUpdate
     ) -> dict[str, Any]:
         return await service.set_permission(station_id, id_tag, enabled=body.enabled)
+
+    @app.post(
+        "/api/stations/{station_id}/simulation-lease",
+        response_model=SimulationLeaseResult,
+    )
+    async def acquire_simulation_lease(station_id: StationId) -> dict[str, str]:
+        return await service.acquire_simulation_lease(station_id)
+
+    @app.post(
+        "/api/stations/{station_id}/simulation-lease/release",
+        response_model=SimulationReleaseResult,
+    )
+    async def release_simulation_lease(
+        station_id: StationId, body: SimulationLeaseRelease
+    ) -> dict[str, bool]:
+        return await service.release_simulation_lease(station_id, body.token)
 
     @app.get("/api/stations/{station_id}/sessions", response_model=list[SessionResult])
     async def list_sessions(

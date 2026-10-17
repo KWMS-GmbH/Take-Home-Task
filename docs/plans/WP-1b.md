@@ -2,8 +2,9 @@
 
 Status: candidate approved D-23–D-27, concrete defaults and this implementation
 plan on 2026-10-17. Implementation is authorized; verification/PR merge is separate.
-Execution: implemented and locally verified; current publication/merge evidence is
-in WORK.md. The candidate still reviews/merges manually before WP-2.
+Execution: implemented, verified and manually merged as KWMS PR #2 on 2026-10-17
+(`4b2db68`, reviewed head `461ac24`). Evidence is in WORK.md. WP-2 requires its own
+discussion and concrete spec/plan approval before implementation.
 Branch: `codex/session-slice`, fast-forwarded onto manually merged KWMS integration
 `2abf0cc` (preserving WP-1a `f81c3cf` and all earlier history).
 This plan is disposable; [SPEC.md](../SPEC.md) owns agreed behavior and

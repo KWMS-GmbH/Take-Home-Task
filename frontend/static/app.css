@@ -880,6 +880,160 @@ summary {
   font-style: italic;
 }
 
+.simulation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 1.4rem;
+  align-items: start;
+}
+
+.simulation-form {
+  display: grid;
+  gap: 1.3rem;
+  margin-top: 1.5rem;
+}
+
+.acknowledgement {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 1rem;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-radius: 0.65rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.acknowledgement input {
+  width: 1rem;
+  min-width: 1rem;
+  height: 1rem;
+  margin-top: 0.25rem;
+  accent-color: var(--green);
+}
+
+.run-steps {
+  display: grid;
+  gap: 1.3rem;
+  margin: 1.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.run-steps span {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.run-summary,
+.scenario-heading {
+  display: flex;
+  gap: 1.3rem;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.run-summary {
+  margin-bottom: 1.4rem;
+}
+
+.simulation-preflight,
+.snapshot-notice {
+  margin-top: 1.4rem;
+}
+
+.scenario-list {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.scenario-heading .eyebrow {
+  overflow-wrap: anywhere;
+}
+
+.scenario-outcomes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+}
+
+.scenario-outcomes span,
+.scenario-outcomes strong,
+.scenario-outcomes small,
+.data-checks small {
+  display: block;
+}
+
+.scenario-outcomes span,
+.scenario-outcomes small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.scenario-outcomes strong {
+  margin: 0.3rem 0;
+}
+
+.outcome-pass {
+  color: var(--green);
+}
+
+.outcome-fail {
+  color: var(--red);
+}
+
+.outcome-muted {
+  color: var(--muted);
+}
+
+.data-checks {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0;
+  margin: 1.3rem 0;
+  list-style: none;
+}
+
+.data-checks li {
+  display: flex;
+  gap: 0.7rem;
+  align-items: start;
+  font-size: 0.83rem;
+}
+
+.data-checks small {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.original-checks,
+.scenario-exchanges {
+  margin-top: 1rem;
+}
+
+.original-checks li {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.snapshot-table caption {
+  padding: 1rem 0;
+  color: var(--muted);
+  text-align: left;
+  font-size: 0.8rem;
+}
+
 .unauthorized-note {
   display: block;
   margin-top: 0.3rem;
@@ -938,7 +1092,8 @@ summary {
 
 @media (max-width: 780px) {
   .hero,
-  .probe-layout {
+  .probe-layout,
+  .simulation-layout {
     grid-template-columns: 1fr;
   }
 
@@ -980,7 +1135,9 @@ summary {
   }
 
   .section-heading,
-  .permission-heading {
+  .permission-heading,
+  .run-summary,
+  .scenario-heading {
     align-items: flex-start;
     flex-direction: column;
   }
