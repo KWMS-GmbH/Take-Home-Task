@@ -17,6 +17,12 @@ if [ "${KWMS_TOOLING_CONTAINER:-0}" != "1" ]; then
         "$tooling_image" \
         ./scripts/check.sh
     TEST_DB_PASSWORD_FILE=/dev/null docker compose -f compose.test.yml config --quiet
+    RECOVERY_DB_CONTAINER_NAME=kwms_recovery_config_db \
+        RECOVERY_RUN_TOKEN=kwms_recovery_00000000_0 \
+        RECOVERY_VOLUME_NAME=kwms_recovery_config_data \
+        RECOVERY_CONTROL_DIRECTORY=/tmp \
+        RECOVERY_SECRET_FILE=/dev/null \
+        docker compose -f compose.recovery.yml config --quiet
     STACK_NAME=kwms docker stack config --compose-file stack.yml >/dev/null
     exit 0
 fi

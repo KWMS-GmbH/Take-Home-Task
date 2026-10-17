@@ -2,8 +2,9 @@
 
 Status: foundation/WP-1a imported with full history into canonical KWMS main;
 WP-1b manually merged as KWMS PR #2 (`4b2db68`) and WP-2 as KWMS PR #3 (`e0b51fc`),
-2026-10-17. Candidate approved the WP-3a/WP-3b split, isolated failure tests and
-conservative retention boundary; WP-3a implements the failure-proof contract below.
+2026-10-17. WP-3a manually merged as KWMS PR #4 (`3699be9`). Candidate approved the
+WP-3 split/isolation/retention boundary and explicitly confirmed the WP-3b defaults
+below: separated health/readiness, isolated recovery/load proof and safe manual cleanup.
 Implementation/verification status is separate; this spec alone is not evidence of a pass.
 The high-level decisions below were agreed in discussion; proposed mechanics and
 open questions remain visibly marked. Original-source coverage lives in
@@ -81,6 +82,9 @@ the supplied runner's warning/failure count alone.
 | D-30 | Candidate approved separate protocol/data results and temporary simulation reports, while sessions/business audit stay durable. Correlate actual Start response IDs and fetch those exact sessions via HTTP. No run archive/resume engine; timeout/failure does not undo committed charging data. |
 | D-31 | Candidate approved two WP-3 PRs: WP-3a charging races/process-crash correctness, then WP-3b bounded load/dependency recovery/maintenance. Use disposable test resources for injected failures, never the live demo stack. No new deployed service, autoscaling, socket migration or database HA. |
 | D-32 | Candidate approved preserving sessions, meter evidence and business audit. WP-3b maintenance may prune only superseded-connection replay records in bounded batches; never age-delete the current connection/generation's replay records. Concrete maintenance safeguards/defaults remain for that package's spec, not automatic purge authority here. |
+| D-33 | Candidate explicitly approved WP-3b health separation: restart health tracks application/listener liveness; dependency readiness is separate. Started apps remain alive during a DB outage and can return temporary errors until recovery. Swarm's one health signal is not dependency-aware traffic routing. |
+| D-34 | Candidate approved isolated volume-backed DB stop/restart, resource-limit checks and a 12-station correctness workload, not a capacity benchmark. Arbitrary network-blackhole recovery remains an explicit limitation; server SQL timeouts are not universal network wall-time guarantees. |
+| D-35 | Candidate approved station-specific cleanup, dry-run by default and explicit apply, batches of 100 superseded replay rows older than seven days. Preserve current/pending generations, sessions, meter evidence and all existing business audit. No global sweep, scheduler or automatic live purge. |
 
 These are derived choices, not claims that KWMS specified every mechanism.
 
@@ -182,6 +186,87 @@ second session. Passing this remains mandatory even if ordinary UI runs are seri
 - Assignment integrity remains clean; warnings explain the remaining shared-ID side effect.
 
 ## Implementation boundaries and mechanics
+
+### WP-3b approved scope and concrete implementation contract
+
+**Health and recovery**
+
+- Backend `/health/live` checks HTTP execution plus the OCPP listener's local serving
+  state, without database I/O; frontend liveness stays dependency-independent.
+  `/health/ready` continues to require the backend listener/database round-trip,
+  and frontend readiness delegates to it. Failures remain generic, no credentials
+  or raw driver errors. Docker/Swarm application healthchecks use liveness; deployment
+  still explicitly waits for actual per-task readiness before announcing success.
+- This avoids treating a shared DB outage as death of an already-started app.
+  Swarm can still route traffic to a live but unready app; HTTP 503/OCPP temporary
+  errors or registration close are the honest outcome, never false success. Initial
+  migrations still require DB availability before listeners start. No new proxy,
+  service, hidden mutation retry or dependency-driven restart framework.
+- Add a fully automated dedicated recovery test with an exact owned disposable
+  Compose project and volume-backed PostgreSQL. The usual tmpfs test database is
+  not persistence-across-container-restart evidence. Keep three independently
+  pooled/listening app instances running while the controller gracefully stops and
+  restarts only that project's DB. No live-stack fault injection or Docker socket
+  mounted into the application/tooling container; host shell controls owned resources.
+- Before outage, commit station/tag/permission, an active charging transaction,
+  meter evidence, audit and replay response. During outage prove live 200/ready 503,
+  bounded generic unavailable API/OCPP outcomes and no successful mutation reply.
+  After restart of the same volume, the same app instances recover, retain exact
+  prior committed data and complete/retry the same session once. No invented Boot,
+  stop time, auto-completion or restart-dependent state reconstruction.
+- Test phase waits, controller handshakes, sockets and cleanup are bounded; guard
+  test database/project/container identities before stop/remove. Teardown deletes
+  only this generated test project/volume. No claim of abrupt PostgreSQL/host loss,
+  exhaustive outage timing, network-blackhole deadlines or HA.
+- Candidate approved the harness-only CI repair after Linux startup failed before
+  fault injection: the temporary Compose file secret must be readable by the
+  unprivileged tooling UID, inside its private host directory. Production Swarm
+  secrets are unchanged. Configuration errors expose only a sanitized exception
+  type; emit a failure marker only after validating control/token scope. Detect
+  an exact-owned checker that exits before its expected marker instead of waiting
+  for the phase deadline. Add regressions; do not mask the issue with longer waits.
+
+**Bounded operation**
+
+- Exercise real pool exhaustion and station-lock timeout through HTTP/OCPP, proving
+  temporary generic failures, no target partial domain/audit/inbox mutation and
+  successful subsequent requests once resources are available. Test socket capacity
+  rejection and capacity reuse. Existing production bounds stay unless actual
+  evidence justifies a reviewed change; observation-specific test settings are explicit.
+- Run a bounded 12-distinct-station workload over three independent listeners/pools,
+  using real Start/Meter/Stop plus retries. Assert distinct integer transactions,
+  exact time/energy/lifecycle, once-only business effects and released pool resources.
+  Record observed elapsed time, not a throughput SLA, production fleet size or DDoS
+  guarantee. Keep configured steady/rolling/migration connection budgets visible.
+
+**Replay maintenance**
+
+- Provide a container-run CLI requiring one validated existing station ID. Default
+  is dry-run. Only explicit `--apply` deletes; each invocation handles at most 100
+  replay rows (optional smaller limit 1–100). Fixed eligibility age is strictly
+  older than seven days according to PostgreSQL time, not station event time.
+  No arbitrary SQL, global selector, shorter-age bypass, scheduler or HTTP purge route.
+- One short transaction locks the station first, then selects a stable bounded
+  batch where `inbox.generation < station.active_generation` and age qualifies.
+  Never compare to merely allocated `next_generation`; preserve current and pending
+  higher generations, recent/sibling-station rows and all business records.
+  Existing statement/lock/pool bounds apply; bounded row count is not a claim of
+  constant query cost on an unlimited archive. Add a supporting index only if useful.
+- Dry-run changes no data/audit and reports only bounded selected-row count and
+  scope/cutoff, not a full-archive count or raw payload/tags/credentials. Applied
+  deletion and one factual summary audit commit together, even for a zero-row batch;
+  no success before commit. Preserve every existing audit row. Rollback or concurrent
+  batches must not claim deletion that did not commit or double-count removed rows.
+- Test age/generation/station/limit exclusions, dry-run and explicit CLI behavior,
+  audit atomicity/rollback, concurrent apply and safe behavior alongside ownership
+  promotion/replay. Old sockets remain fenced after their inbox rows are pruned;
+  active exact retry and cross-connection session/Stop idempotency stay unchanged.
+- Never apply cleanup to the live demo as part of verification. A deployed dry-run
+  is permitted; automated apply tests target only disposable explicit `_test` data.
+
+Keep original files intact; run focused and full container checks, automated recovery,
+deployment/smoke and independent code/architecture review. No UI feature change is
+planned; report actual browser evidence only if observed, not inferred from smoke.
 
 ### WP-3a approved scope and concrete verification contract
 
@@ -459,11 +544,11 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 
 | ID | Decision needed | Owner |
 | --- | --- | --- |
-| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes now pass through the WP-2 adapter; retention/failure extensions remain. | WP-3 |
+| Q-01 | D-24/D-27 and connection-scoped replay are implemented/tested: active exact matches stay protected; interrupted/completed use 24-hour post-transition grace plus expired-match indication. All eight fixture/API/DB outcomes pass through the WP-2 adapter; WP-3 adds scoped race/crash/recovery and replay-maintenance proof. Candidate WP-3b review and final reconciliation remain. | WP-3b review, WP-4 |
 | Q-02 | Resolved: pinned public API/raw filter, malformed-input/output validation and exact extra-field wire/collision coverage for Boot/Authorize plus all four charging actions pass. Broader fuzzing is not claimed. | Closed in WP-2 |
 | Q-03 | Resolved: D-25–D-27/D-12 rules and all eight adapter/API/DB outcomes/browser results verified; candidate manually merged WP-2. Later crash/concurrency proof remains Q-04. | Closed in WP-2 |
-| Q-04 | D-21/D-22 and explicit/deployed continuation remain verified. WP-3a focused tests now prove controlled charging/permission/Stop races with three independent pools plus actual child-process death before/after commit and survivor retries. Bounded load/dependency recovery and tuning remain WP-3b; candidate WP-3a review/merge is separate. | WP-3a review, WP-3b |
-| Q-05 | Atomic session audit, bounded/redacted operational logs and exact full-scenario ID/API extraction are implemented/tested. Retention remains; do not promise durable external diagnostic collection. | WP-3 |
+| Q-04 | WP-3a merged; D-33/D-34 implemented. WP-3b focused/full/static checks, repeated owned volume-backed graceful DB restart and normal three-task redeploy/smoke pass (WORK.md). Candidate review/current-head CI remain separate. No fleet-capacity, HA or network-blackhole guarantee from configured SQL timeouts. | WP-3b review, WP-4 |
+| Q-05 | D-35 cleanup safeguards implemented: station-specific dry-run/apply, seven-day DB age, cap100 and atomic summary audit. Exclusion/rollback/concurrency/retry and full local gates pass; deployed CLI verified dry-run only. Business/current/pending evidence retained. Candidate manual review and final reconciliation remain; current-head Checks determine CI readiness. No external diagnostic-durability promise. | WP-3b review, WP-4 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
 | Q-07 | Resolved: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser experience verified and manually merged. | Closed in WP-2 |
 | Q-08 | Resolved: D-28–D-30 implemented with source integrity, exact correlation, partial/deadline evidence, independent review, passing reviewed-head CI and candidate manual merge. Initial demo bounds are not capacity proof; Q-04/Q-05 remain. | Closed in WP-2 |
@@ -545,6 +630,31 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   domain/audit/inbox writes. Controlled PG blocker observations and real owned-child
   death/reconnect checks pass. The two survivors share the parent OS process;
   do not conflate this with killing three deployed Swarm tasks or HA/capacity proof.
+- 2026-10-17: Candidate manually merged WP-3a (`3699be9`); tree identity with reviewed
+  `1b9c4bf` and original source verified. Begin WP-3b grilling. Read-only review found
+  that the existing tmpfs test DB cannot establish persistence across container
+  stop/restart, and pruning must compare with active (not allocated next) generation.
+  These findings do not approve concrete health/cleanup/load changes by themselves.
+- 2026-10-17: Candidate explicitly confirmed approval after an ambiguous voice
+  transcript: D-33–D-35 are accepted. Persist concrete WP-3b contract/plan before
+  implementation. Recovery uses an owned disposable volume; maintenance remains
+  opt-in/dry-run by default and preserves business/current-generation evidence.
+- WP-3b review repaired non-aborting POSIX `&&` ownership guards before fault
+  injection, added explicit fail-closed collision/ownership tests, and prevented old
+  healthy tasks or rolled-back updates from satisfying deployment success. The first
+  owned volume-backed graceful DB recovery run passes with exact prior data and the
+  same app instances/socket; applied cleanup remains confined to disposable test data.
+- WP-3b local gates now pass: 39 focused tests, 316 full pytest tests, static/source
+  checks, two actual isolated recovery runs, normal three-task redeploy/smoke and
+  live maintenance dry-run. No UI policy changed. Independent review found no
+  remaining blocker; current-head CI and candidate manual review/merge still gate
+  completion. Full final acceptance remains WP-4, not inferred from these checks.
+- WP-3b clean-run CI then passed 316 pytest cases but failed before the recovery
+  outage began. Candidate approved the harness-only Linux file-permission/startup
+  reporting repair. Its 16 focused regressions, 324-test suite, static checks,
+  two actual isolated recovery runs and normal three-task smoke pass locally.
+  Code/architecture impact self-reviewed; no charging or production-secret change.
+  Current-head CI and candidate manual review/merge remain separate gates.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),

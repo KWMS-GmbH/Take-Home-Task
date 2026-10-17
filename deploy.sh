@@ -61,6 +61,20 @@ wait_for_stack() {
             expected=${service_and_count#*:}
             service_name="${stack_name}_${service}"
 
+            update_state=$(docker service inspect --format \
+                '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}}' "$service_name")
+            case "$update_state" in
+                updating)
+                    all_ready=0
+                    continue
+                    ;;
+                paused|rollback_*)
+                    printf 'ERROR: service %s deployment ended in %s.\n' \
+                        "$service_name" "$update_state" >&2
+                    return 1
+                    ;;
+            esac
+
             replicas=$(docker service ls --filter "name=$service_name" --format '{{.Replicas}}')
             if [ "$replicas" != "$expected/$expected" ]; then
                 all_ready=0
@@ -68,16 +82,29 @@ wait_for_stack() {
             fi
 
             healthy=0
+            expected_image=$(docker service inspect --format \
+                '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "$service_name")
             container_ids=$(docker ps \
                 --filter "label=com.docker.swarm.service.name=$service_name" \
                 --filter status=running \
                 --format '{{.ID}}')
             for container_id in $container_ids; do
+                actual_image=$(docker inspect --format '{{.Config.Image}}' "$container_id")
+                if [ "$actual_image" != "$expected_image" ]; then
+                    # Old healthy tasks must not satisfy a new image rollout.
+                    continue
+                fi
                 container_state=$(docker inspect --format \
                     '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
                     "$container_id")
                 if [ "$container_state" = "healthy" ]; then
-                    healthy=$((healthy + 1))
+                    # Swarm restart health is liveness. Deployment success still
+                    # requires every app task to pass its separate readiness probe.
+                    if [ "$service" = "db" ] || docker exec "$container_id" python -c \
+                        "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2).read()" \
+                        >/dev/null 2>&1; then
+                        healthy=$((healthy + 1))
+                    fi
                 fi
             done
             if [ "$healthy" -lt "$expected" ]; then
@@ -90,7 +117,7 @@ wait_for_stack() {
         fi
         now=$(date +%s)
         if [ $((now - started_at)) -ge "$wait_timeout_seconds" ]; then
-            printf 'ERROR: stack did not become healthy within %s seconds.\n' \
+            printf 'ERROR: stack did not become live and ready within %s seconds.\n' \
                 "$wait_timeout_seconds" >&2
             docker stack services "$stack_name" >&2 || true
             docker stack ps --no-trunc "$stack_name" >&2 || true
@@ -122,8 +149,8 @@ STACK_NAME="$stack_name" docker stack deploy \
     --resolve-image never \
     "$stack_name"
 
-printf '%s\n' 'Waiting for all service replicas to become healthy...'
+printf '%s\n' 'Waiting for all service replicas to become live and ready...'
 wait_for_stack
 
-printf 'Stack %s is healthy. Open http://localhost:8080\n' "$stack_name"
+printf 'Stack %s is live and ready. Open http://localhost:8080\n' "$stack_name"
 printf '%s\n' 'A fresh volume starts empty; existing data is preserved. Optional: make demo-data'

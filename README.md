@@ -4,7 +4,7 @@ Interview take-home for KWMS. The original assignment and supplied replay toolin
 remain unchanged in [take-home/](take-home/). Submission deadline: Sunday,
 2026-10-18, 21:00 Europe/Berlin; our safety target is 18:00.
 
-## Current milestone: WP-3a reliability verification
+## Current milestone: WP-3b bounded operation and recovery
 
 Manage station/tag permissions, check real OCPP authorization, run all eight supplied
 scenarios, and inspect their actual API session data through Flask. Protocol and
@@ -12,11 +12,12 @@ session-data outcomes are checked separately. Sessions keep lifecycle,
 authorization-at-start and meter quality separate; three backend replicas share
 PostgreSQL state and enforce connection ownership there.
 
-WP-3a adds deterministic contested-write and actual process-death tests for these
-existing rules; it does not change production behavior or the browser experience.
+WP-3a adds contested-write/process-death proof. WP-3b separates restart health from
+dependency readiness, verifies graceful database recovery and resource bounds, and
+adds safe opt-in maintenance of superseded replay records. Browser behavior is unchanged.
 
-**Not yet a complete submission:** bounded load, database dependency recovery and
-safe replay maintenance remain WP-3b; independent final acceptance remains WP-4. The
+**Not yet a complete submission:** WP-3b candidate review and independent final
+acceptance remain; WP-4 owns the final requirement/deployment/security walkthrough. The
 [work board](docs/WORK.md) and [requirement matrix](docs/REQUIREMENTS.md) distinguish
 implemented behavior, observed evidence and remaining work.
 
@@ -131,19 +132,30 @@ the report fails or times out. There is no background queue, resume engine or un
 ```sh
 make verify-assignment            # byte-for-byte baseline guard, Git + shell only
 make check                        # container: guard tests, format, lint, types, config
-make test                         # container: unit + isolated real-PostgreSQL integration
+make test                         # pytest + isolated volume-backed DB stop/restart proof
+make test-recovery                # run just that owned DB recovery gate
 make smoke                        # deployed stack: three replicas + full scenario UI flow
 ```
 
 `make test` uses an isolated Compose project and a disposable PostgreSQL tmpfs. It
 never targets the deployed database; destructive test fixtures require an explicit
 database name ending `_test`. It races three migration processes and tests database
-postconditions, not merely protocol responses. Test resources are removed afterward.
+postconditions, not merely protocol responses. The normal pytest DB uses tmpfs;
+the separate recovery gate uses a disposable named volume so container stop/start
+actually tests persistence. Its host controller verifies generated project/name/token
+ownership before each fault and cleanup; the checker gets no Docker socket. Existing
+target collisions or unreadable ownership/absence checks abort. Test resources are
+removed afterward; no live database/stack is stopped.
+Its disposable Compose file secret is readable by the non-root tooling UID inside
+a private `0700` host directory; production Swarm secrets are unchanged. Startup
+errors report only their type, and an exited checker fails early rather than being
+misreported as a phase timeout.
 
 Focused checks use the same isolated lifecycle; omit arguments for the full suite:
 
 ```sh
 ./scripts/test.sh tests/test_charging_races.py tests/test_process_crashes.py
+./scripts/test.sh tests/test_operation_bounds.py tests/test_replay_maintenance.py
 ```
 
 The race tests use three separate Service instances/pools and observe actual
@@ -161,6 +173,19 @@ successful reply, reconnects through survivors and converges to one completion.
 Generated-ID gaps after rollback are valid. All hooks are test-local, waits/cleanup
 are bounded, and unsafe database URLs are rejected before engine creation. These
 tests do not kill the live demo stack, PostgreSQL or three separate Swarm tasks.
+
+The recovery checker keeps three independently pooled service/listener instances
+and a socket alive in one tooling process while its exact owned PostgreSQL container
+is gracefully stopped/restarted on the same volume. It verifies live 200/ready 503,
+generic unavailable mutation outcomes, exact retained table snapshots and one final
+completion/replay without app restart. HTTP assertions use the actual ASGI handlers;
+normal Swarm smoke separately covers three real backend processes and network HTTP.
+This is not abrupt DB/host-loss, HA or arbitrary network-blackhole proof.
+
+Resource tests exercise real pool/lock exhaustion and socket capacity/reuse, verifying
+generic errors, no partial writes and subsequent recovery. A 12-station real-WebSocket
+workload checks exact transactions, energy/duration, retries and pool release; its
+elapsed time is an observation, not production sizing or a throughput SLA.
 
 `make smoke` addresses all three actual backend tasks explicitly, checks UI forms and
 CSRF, shared permission updates, stale fencing, the UI's real Authorize-only probe,
@@ -205,13 +230,23 @@ validated response commit together; network replies happen after releasing the
 transaction. Management HTTP mutations also commit with audit. Initial
 per-replica pool bounds are 5 connections, zero overflow, 2s acquisition, 3s connect,
 1s lock and 3s statement timeout. Migrations use a PostgreSQL advisory lock. Startup
-retries transient database failures; health/restart policies do not rely on Swarm
-`depends_on` ordering.
+retries transient database failures without Swarm `depends_on` ordering.
+
+Application Swarm healthchecks use `/health/live`: backend checks its local OCPP
+listener, frontend checks HTTP execution, neither depends on PostgreSQL. The separate
+`/health/ready` requires the listener/database (frontend delegates to backend). An
+already-started app can stay live during a DB outage while returning HTTP 503/OCPP
+temporary errors; a failed registration closes without success. Swarm's single
+health signal does not provide readiness-aware traffic routing. Initial migrations
+still wait for PostgreSQL before backend listeners start. Deployment explicitly waits
+for every current-image app task's readiness and a completed rollout before reporting
+success; old healthy images or a rollback cannot satisfy that gate. Its polling budget
+is not a strict end-to-end wall-clock deadline for every Docker operation.
 
 The default three pools allow up to 15 steady application connections. The declared
 one-at-a-time start-first rollout can temporarily run a fourth task (up to 20),
 plus migration/admin connections. This is a configuration budget, not measured fleet
-capacity; dependency recovery/load measurements remain WP-3b.
+capacity; the small workload does not establish a safe fleet size.
 
 Running `docker service scale kwms_backend=3` is already the default. Shared
 permissions, database fencing and serialized migrations are built in. WP-3a adds
@@ -221,6 +256,34 @@ coverage, production capacity or HA. The single-node
 host and single PostgreSQL instance remain failure domains; a volume is not a backup.
 Multi-node deployment additionally needs shared image distribution, database/storage
 placement and recovery planning; locally built images target the requested one node.
+
+## Safe replay maintenance
+
+Maintenance is a trusted local Docker-operator command, not a frontend action or
+public API. Inspect one existing station first; default execution deletes nothing:
+
+```sh
+./scripts/prune-replays.sh --station-id CHECK-CP
+```
+
+Only adding `--apply` deletes a batch, with a maximum of 100 rows; `--limit` may
+reduce that to 1–100. The fixed age is strictly older than seven days using PostgreSQL
+time. Only replay rows below the locked station's **active** generation qualify:
+current and pending higher generations, recent rows and other stations stay intact.
+Sessions, meter evidence and every existing business audit row are preserved.
+
+Dry-run reports bounded selected count/scope/cutoff, not a full remaining-archive
+count, and writes no audit. Apply deletes selected response records and commits one
+factual summary audit atomically, including zero-row batches; failure reports no
+success. The operator role is not an authenticated person's identity. Superseded
+sockets remain fenced; cross-connection Start/Stop idempotency uses durable sessions,
+not these old inbox rows. Deleted technical responses are not automatically recoverable.
+
+There is no global sweep, scheduler, age bypass or automatic live purge. Verification
+applies cleanup only to disposable test data and uses the live CLI in dry-run mode.
+The station index and SQL/pool/lock timeouts remain; a 100-row batch is not constant
+query cost on an unlimited archive. Business-data retention/backup policy, fleet
+pagination and stronger production database roles remain deployment concerns.
 
 ## Session decisions and simulation caveat
 
@@ -292,8 +355,10 @@ Initial transport limits per replica: 128 sockets; 20 messages/s with a 40-messa
 burst per socket; 10,000 requests per connection; 300s idle timeout. These are bounded
 demo defaults, not measured production capacity or DDoS protection. Invalid JSON does
 not acquire ownership or poison later valid requests. Simulation work has separate
-lease/deadline/frame/text bounds, without a background worker service. Broader
-crash/load proof, audit/inbox retention and fleet pagination remain tracked work.
+lease/deadline/frame/text bounds, without a background worker service. Controlled
+crash/outage/resource tests do not prove general load capacity or network-blackhole
+deadlines. Business audit is retained; only explicit superseded-replay cleanup is
+implemented. Fleet pagination and production retention policy remain tracked work.
 Session history itself persists; the Start retry window is not a database
 retention/deletion policy.
 

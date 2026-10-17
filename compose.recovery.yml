@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:17-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826
+    container_name: "${RECOVERY_DB_CONTAINER_NAME:?generated database container name required}"
+    environment:
+      POSTGRES_DB: charging_recovery_test
+      POSTGRES_USER: charging_recovery
+      POSTGRES_PASSWORD_FILE: /run/secrets/recovery_db_password
+    secrets:
+      - recovery_db_password
+    volumes:
+      - recovery_data:/var/lib/postgresql/data
+    labels:
+      io.kwms.recovery.token: "${RECOVERY_RUN_TOKEN:?generated recovery token required}"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 1s
+      timeout: 2s
+      retries: 30
+      start_period: 3s
+    networks:
+      - recovery
+
+  tooling:
+    image: kwms-tooling:test
+    build:
+      context: .
+      target: tooling
+    environment:
+      RECOVERY_RUN_TOKEN: "${RECOVERY_RUN_TOKEN:?generated recovery token required}"
+      RECOVERY_CONTROL_DIRECTORY: /control
+    labels:
+      io.kwms.recovery.token: "${RECOVERY_RUN_TOKEN:?generated recovery token required}"
+    secrets:
+      - recovery_db_password
+    volumes:
+      - "${RECOVERY_CONTROL_DIRECTORY:?generated control directory required}:/control"
+    networks:
+      - recovery
+    init: true
+    command: ["python", "-m", "scripts.recovery_check"]
+
+networks:
+  recovery:
+    internal: true
+    labels:
+      io.kwms.recovery.token: "${RECOVERY_RUN_TOKEN:?generated recovery token required}"
+
+volumes:
+  recovery_data:
+    name: "${RECOVERY_VOLUME_NAME:?generated volume name required}"
+    labels:
+      io.kwms.recovery.token: "${RECOVERY_RUN_TOKEN:?generated recovery token required}"
+
+secrets:
+  recovery_db_password:
+    file: "${RECOVERY_SECRET_FILE:?generated temporary secret required}"

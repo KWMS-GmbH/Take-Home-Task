@@ -142,19 +142,22 @@ case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 ## WP-3 — Three-replica reliability and bounded operation
 
 Status: candidate approved two PRs, isolated fault tests and conservative retention
-on 2026-10-17 (D-31/D-32). WP-3a in progress under the concrete SPEC.md contract and
-[persisted plan](plans/WP-3a.md); WP-3b waits for its manual merge. Extend existing foundations
-to charging races, crashes, load, retention and operational recovery.
+on 2026-10-17 (D-31/D-32). WP-3a manually merged; candidate explicitly approved WP-3b
+defaults (D-33–D-35). Local implementation/verification follows SPEC.md and
+[plan](plans/WP-3b.md); WP-3b current-head CI and manual merge remain.
 
-- [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
-- [ ] Stress the delivered connector-uniqueness and charging-lock invariants with
+- [x] Discuss fencing/takeover and database budget; update spec and persist plan.
+- [x] Stress the delivered connector-uniqueness and charging-lock invariants with
   explicit concurrent writers across replicas.
-- [ ] Tune existing pool/transport/log and WP-2 simulation bounds; add retention.
-- [ ] Extend serialized-migration/readiness/log checks with dependency-failure recovery proof.
-- [ ] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
+- [x] Review existing pool/transport/log and WP-2 simulation bounds; keep runtime
+  defaults without tuning evidence and add scoped replay maintenance.
+- [x] Extend readiness with isolated dependency-failure/data-recovery proof;
+  existing migration/log checks remain, external durable logs are deferred.
+- [x] Test takeover across explicit replicas, stale writers, concurrent starts/permissions,
   crash before/after commit, reconnect/replay and three-instance startup.
-- [ ] Extend WP-1b's unchanged scenario 07/actual backend=3 continuation proof with
-  injected failures/recovery; extend WP-2's delivered all-eight browser proof.
+- [x] Add isolated charging process/DB-failure recovery proof and repeat normal
+  actual backend=3 continuation/all-eight UI smoke. UI is unchanged; final visual
+  browser acceptance remains WP-4, not additional Swarm-chaos proof.
 - [ ] Code/architecture review, evidence update and candidate manual PR review.
 
 Acceptance: all original cases plus U-SCALE work with three replicas. If scope/time requires
@@ -163,14 +166,16 @@ an omission, obtain a visible scope decision and retain it as incomplete in the 
 Approved split: **WP-3a** deterministic race/process-crash correctness, then **WP-3b**
 bounded operation/dependency recovery/maintenance. Failures run only on isolated test
 resources. Preserve sessions, meter evidence/business audit and current-generation
-replay rows; WP-3b may clean only superseded replay rows in bounded batches, with its
-concrete safeguards still to be specified. No new deployed service/autoscaling/HA.
+replay rows; WP-3b cleans only superseded replay rows with the approved fixed-age,
+station-scoped/dry-run/cap safeguards below. No new deployed service/autoscaling/HA.
 
 ### WP-3a — charging races and process-crash correctness
 
-Status: locally verified and published in
-[KWMS PR #4](https://github.com/KWMS-GmbH/Take-Home-Task/pull/4).
-Current-head CI is visible in PR Checks; candidate review/manual merge pending.
+Status: done. Candidate manually merged
+[KWMS PR #4](https://github.com/KWMS-GmbH/Take-Home-Task/pull/4) on 2026-10-17 at
+16:36:34 Europe/Berlin, merge `3699be98379bd527b29d4d6ed9b876d0871831a3`.
+Its tree matches reviewed head `1b9c4bf`; local main is synchronized.
+[Reviewed-head CI passed](https://github.com/KWMS-GmbH/Take-Home-Task/actions/runs/39040735481).
 Branch `codex/reliability-slice`; production application/schema/deployment unchanged.
 
 - [x] Candidate approves scope/boundaries; record concrete spec and implementation plan.
@@ -180,12 +185,51 @@ Branch `codex/reliability-slice`; production application/schema/deployment uncha
 - [x] Full regression/static/source gates, actual deployed smoke and independent reviews.
 - [x] Publish layered KWMS PR with actual local gates and review focus; current-head
   remote checks gate ready status before handoff rather than a fixed green checkbox.
-- [ ] Candidate manually reviews/merges before WP-3b implementation.
+- [x] Candidate manually reviews/merges; merge/tree/source identity confirmed
+  before WP-3b preparation.
 
 ### WP-3b — bounded operation, recovery and safe maintenance
 
-Not started. Discuss concrete workload/maintenance safeguards after WP-3a's merge;
-retain the approved boundaries without claiming that load/recovery/retention is proven.
+Published as [KWMS PR #5](https://github.com/KWMS-GmbH/Take-Home-Task/pull/5)
+after the local readiness gates passed. Branch `codex/operations-slice`, based on
+manually merged WP-3a `3699be9`; concrete contract and plan persisted. Current-head
+Checks gate ready status before handoff; candidate review/manual merge is still
+required and WP-4 has not started.
+
+CI repair implemented and locally verified after candidate approval: run `39045326042` at `f216a13`
+passed static checks/316 pytest cases, then timed out before recovery's
+`ready_to_stop`. No fault was injected and CI did not reach fresh Swarm deployment.
+The approved fix (`2fa10dc`) addresses test-only Linux secret readability and
+startup/exit diagnostics. The 324-test suite, repeated owned recovery/static gates
+and normal three-task smoke pass; exact-head CI still gates removal of draft status.
+
+Approved defaults, with concrete safeguards in SPEC.md:
+
+- Separate restart health (application/listener liveness) from dependency readiness;
+  retain generic 503/error behavior while DB is unavailable, without treating a shared
+  DB outage as process death. Swarm has one health signal, so document its routing trade-off.
+- Test graceful database stop/restart on an exact owned disposable volume-backed DB,
+  not the existing tmpfs test DB or live stack. Keep app instances running and prove
+  state persistence, failure responses and recovery. Arbitrary network blackholes
+  are not covered by server statement timeouts; do not claim a universal wall-time bound.
+- Add pool/lock/socket bound checks and a 12-station correctness workload, reporting
+  observed timings rather than a throughput SLA. Keep defaults absent contrary evidence.
+- Station-specific maintenance command, dry-run by default, explicit apply, seven-day
+  minimum age by default and 100 replay rows per batch. Lock station first and compare
+  strictly against active generation, preserving current and pending higher generations.
+  Preserve business records/existing audit; add one summary audit per applied batch.
+  No global sweep or scheduled purge. Fixed seven-day age, one station, cap 100 per
+  invocation, dry-run without writes; deployed verification never applies cleanup.
+
+- [x] Approve scope/defaults; persist contract and implementation plan.
+- [x] Separate liveness/restart health and dependency readiness; retain deployment readiness gate.
+- [x] Owned volume-backed DB stop/restart proof with unchanged app instances/data integrity.
+- [x] Real pool/lock/socket bounds and 12-station correctness workload.
+- [x] Safe station-specific dry-run/apply CLI, audit/rollback/concurrency regressions.
+- [x] Full/static/source/recovery/deployment gates and independent reviews; honest evidence.
+- [x] Publish layered KWMS PR; current-head remote checks gate ready status before
+  handoff, rather than a permanently green documentation checkbox.
+- [ ] Candidate manually reviews/merges before dependent WP-4 implementation.
 
 ## WP-4 — Independent acceptance and submission
 
@@ -424,3 +468,83 @@ commit, findings addressed, and remaining limitations at each gate.
   review found no actionable inconsistency; original requirement definitions and
   runtime/source trees remain unchanged. Current-head CI and candidate manual merge
   remain separate gates; no WP-3b implementation started.
+- WP-3a completion: GitHub confirms manual merge at `2026-10-17T14:36:34Z`, merge
+  `3699be9`. Its tree matches reviewed `1b9c4bf`, whose CI run `39040735481` passed.
+  Local main fast-forwarded and assignment guard passes. New preparation branch:
+  `codex/operations-slice`. Read-only review identified tmpfs restart-test limits and
+  active-versus-pending-generation cleanup safety. This is not new runtime-test proof
+  or approval of WP-3b's concrete workload, maintenance or health-policy details.
+- WP-3b approved D-33–D-35 and persisted the concrete contract/plan before code.
+  Health (`07fe738`), maintenance (`7d87d05`), bounded correctness (`f4d6016`)
+  and owned recovery (`cb296fc`) are separate coherent commits. No dependency,
+  schema migration, charging-policy change or additional deployed service was needed.
+- WP-3b focused gates: 17 maintenance cases, nine resource/health cases, five
+  fake-Docker deployment-policy cases and eight fake-Docker recovery-controller
+  cases passed individually; the final combined repeat passes **39 tests** (14.65s).
+  Its 12-station real-WebSocket correctness workload was observed at **0.322s**,
+  not a capacity target. Actual pool/lock/socket limits, unchanged state on failure,
+  later reuse, exact session data and once-only completions are asserted.
+- WP-3b full gates: `make check` passes source/10 guard cases, dependency checks,
+  Ruff format/lint, strict mypy (25 application modules), shell and all deployment/
+  test configurations. `make test` passes **316 pytest tests** (35.89s), then the
+  separate real recovery checker. The owned volume-backed DB stop/restart checker
+  passed twice (standalone and through `make test`); generated resources were
+  checked for cleanup. Same three app/pool/listener instances and retained socket
+  stay live/unready, reject unavailable mutations, recover exact committed table
+  snapshots and complete/replay the same session once. App instances share one
+  OS process and HTTP uses ASGI; only PostgreSQL is a restarted container.
+- WP-3b deployed gates: normal `./deploy.sh` upgrades the existing Swarm while
+  preserving its secrets/data; all current-image tasks pass separate readiness
+  after completed rollouts. `make smoke` passes against three actual backend tasks,
+  including shared permission/fencing/continuation, all-eight UI/API outcomes and
+  denied-run gating. Live `./scripts/prune-replays.sh --station-id CHECK-CP`
+  reports `dryRun=true`, `selectedCount=0`, `deletedCount=0`. No live cleanup apply
+  or injected outage; existing DEMO-* records are outside the smoke's scope. UI
+  behavior is unchanged and no fresh visual-browser observation is claimed.
+- WP-3b independent code/architecture review caught POSIX `set -e` not aborting
+  a failed guard on the left of `&&`. Explicit aborts plus collision/ownership
+  regressions were added before real fault injection. Deployment also rejects
+  old healthy images, incomplete rollouts and rollback outcomes. Final integrated
+  implementation/documentation review found no remaining blocker. Maintenance
+  preserves active/pending generations and every session/meter/existing audit row;
+  apply/delete-summary atomicity, failure rollback and observed concurrent batches
+  pass only against disposable test data. No business TTL, production security,
+  network-blackhole deadline, fleet throughput or database/host HA claim.
+- WP-3b publication: approved contract/plan, four coherent implementation/test
+  commits and evidence (`fe8f288`) pushed to KWMS. PR #5 contains the layered
+  outcome/business/technical/decision/risk/evidence/reviewer/interview guide.
+  Independent final description/documentation review found no blocker after
+  correcting stale umbrella/Q-01 underclaims. The PR was opened in draft while
+  exact-head CI runs; source and whitespace guards pass. Current-head Checks
+  determine ready status before handoff; only the candidate may merge. No WP-4
+  implementation, live outage, cleanup apply or production readiness claim.
+- WP-3b CI diagnosis: [run 39045326042](https://github.com/KWMS-GmbH/Take-Home-Task/actions/runs/39045326042)
+  at `f216a13` passes static checks and **316 pytest cases** (52.61s), then fails
+  waiting for recovery `ready_to_stop`; no outage was injected and fresh Swarm CI
+  deployment did not run. Linux file-backed Compose secret permissions differ from
+  the local Desktop behavior: runner-owned 0600 cannot serve non-root tooling UID
+  10001. The early configuration exception previously bypassed reporting. Candidate
+  approved the scoped repair; original assignment, production secrets/behavior and
+  existing local evidence are unchanged. Repair results follow below.
+- WP-3b approved CI repair (`2fa10dc`): generated Compose secret is 0444 inside
+  its private 0700 directory, preserving the unprivileged checker and read-only mount.
+  Validate scope before failure markers, sanitize even configuration failures, retain
+  original errors if marker writing fails, and inspect exact-owned checker exit
+  without waiting for the phase timeout. Recheck markers after state inspection to
+  avoid rejecting a result published immediately before exit. No longer timeout,
+  production secret/runtime, dependency, migration or original-source change.
+- WP-3b repair gates: final focused startup/controller group **16 passed** (11.30s);
+  `make check` passes all source/static/config/10 guard cases; full `make test`
+  passes **324 pytest tests** (42.39s) plus the real owned-volume recovery gate.
+  Recovery also passes standalone: two actual recovery runs after repair. Normal
+  `make smoke` passes again against the existing three actual backend tasks,
+  including all eight UI/API outcomes and denied gating. Runtime trees are unchanged
+  from the already redeployed WP-3b images, so no new local redeploy was necessary.
+  No live outage/apply or new visual-browser claim. Disposable recovery resources
+  checked for cleanup; current-head remote CI remains a separate readiness gate.
+- CI repair code/architecture impact self-review covers private-directory/read-only
+  secret exposure, fail-closed exact-owned state inspection, no unvalidated marker
+  writes, redaction, original-error preservation and final-marker/exit ordering.
+  Focused regressions pass; no remaining issue found. Prior independent WP-3b
+  reviews remain the broader review evidence; no new independent-agent repair
+  review is claimed. Candidate manual review/merge and WP-4 still remain.

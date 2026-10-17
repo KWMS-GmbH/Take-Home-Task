@@ -125,8 +125,13 @@ def create_app(
     *,
     readiness_check: Callable[[], Awaitable[None]],
     instance_id: str,
+    liveness_check: Callable[[], bool] | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Charging Session Management API", version="0.1.0")
+
+    def require_live() -> None:
+        if liveness_check is not None and not liveness_check():
+            raise RuntimeError("application listener is not serving")
 
     @app.exception_handler(ServiceError)
     async def service_error_handler(_request: Request, exc: ServiceError) -> JSONResponse:
@@ -135,13 +140,21 @@ def create_app(
             content={"detail": str(exc) or exc.__class__.__name__},
         )
 
-    @app.get("/health/live")
-    async def live() -> dict[str, str]:
+    @app.get("/health/live", response_model=None)
+    async def live() -> JSONResponse | dict[str, str]:
+        try:
+            require_live()
+        except Exception:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "instanceId": instance_id},
+            )
         return {"status": "ok", "instanceId": instance_id}
 
     @app.get("/health/ready", response_model=None)
     async def ready() -> JSONResponse | dict[str, str]:
         try:
+            require_live()
             await readiness_check()
         except Exception:  # Readiness must not leak driver/credential details.
             return JSONResponse(

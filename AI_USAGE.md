@@ -51,5 +51,22 @@ The implemented pre-commit hook flushes and reads back domain/audit/inbox SQL st
 the post-commit hook pauses before protocol send. Only an owned child against an
 explicit test database is killed. Three independent pools/services are not presented
 as three separately killed OS processes; the actual deployed three-replica smoke is
-separate evidence. Candidate review/manual merge and later WP-3b/final acceptance
-remain pending.
+separate evidence. I manually reviewed/merged WP-3a as KWMS PR #4; WP-3b and final
+acceptance remain pending.
+
+For WP-3b I approved separate liveness/readiness, isolated graceful DB recovery and
+manual dry-run-first replay maintenance. Codex implemented those changes plus
+resource-bound/workload tests and container-only verification commands. Review caught
+a POSIX shell safety error: a failed guard on the left of `&&` would not necessarily
+abort under `set -e`. Explicit aborts and fake-Docker ownership/collision regressions
+were added before any real outage test. The recovery test then stopped/restarted only
+its generated, label-verified volume-backed DB; no live-stack fault or cleanup apply
+was performed. Three test app instances share one process; normal Swarm smoke is
+separate evidence. Scope excludes HA and arbitrary network-blackhole guarantees.
+
+Clean-run CI then passed all 316 pytest tests but exposed a recovery-harness startup
+failure hidden by a phase timeout. Code review identified the Linux mismatch between
+a runner-owned `0600` Compose file secret and tooling UID 10001; Compose file mounts
+do not remap that ownership. I approved a test-only permission fix inside its private
+directory, sanitized startup errors and early checker-exit detection. Added regressions
+cover those boundaries; no production secret or charging policy was changed.
