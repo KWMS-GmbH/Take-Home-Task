@@ -168,7 +168,9 @@ concrete safeguards still to be specified. No new deployed service/autoscaling/H
 
 ### WP-3a — charging races and process-crash correctness
 
-Status: locally verified; publication/current-head CI and candidate review pending.
+Status: locally verified and published in
+[KWMS PR #4](https://github.com/KWMS-GmbH/Take-Home-Task/pull/4).
+Current-head CI is visible in PR Checks; candidate review/manual merge pending.
 Branch `codex/reliability-slice`; production application/schema/deployment unchanged.
 
 - [x] Candidate approves scope/boundaries; record concrete spec and implementation plan.
@@ -176,7 +178,9 @@ Branch `codex/reliability-slice`; production application/schema/deployment uncha
 - [x] Actual test-child Start/Stop death before commit and after commit/before response.
 - [x] Exact API/PG/inbox/audit/retry assertions, bounded cleanup and repeated focused runs.
 - [x] Full regression/static/source gates, actual deployed smoke and independent reviews.
-- [ ] Proactive layered KWMS PR/current-head CI handoff; candidate manually merges.
+- [x] Publish layered KWMS PR with actual local gates and review focus; current-head
+  remote checks gate ready status before handoff rather than a fixed green checkbox.
+- [ ] Candidate manually reviews/merges before WP-3b implementation.
 
 ### WP-3b — bounded operation, recovery and safe maintenance
 
@@ -413,3 +417,10 @@ commit, findings addressed, and remaining limitations at each gate.
   three pools/services in one process; crash tests kill one actual child with two
   survivors in the parent, not three killed/raced Swarm processes. Dependency/load/
   retention and host/database HA are not claimed. Candidate manual review remains.
+- WP-3a publication: approved process/spec records, deterministic races (`13aed6a`),
+  owned-child crash proof (`dd14b07`) and review/evidence (`f0e3958`) pushed to KWMS.
+  PR #4 provides outcome, business/technical flows, decisions/risks, exact evidence,
+  file route and interview-preparation guide. Independent documentation/description
+  review found no actionable inconsistency; original requirement definitions and
+  runtime/source trees remain unchanged. Current-head CI and candidate manual merge
+  remain separate gates; no WP-3b implementation started.
