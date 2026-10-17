@@ -8,8 +8,8 @@ QA. Review agents inspected code and architecture; their account limit interrupt
 the final pass, so subsequent integration/browser fixes were self-reviewed and
 regression-tested. I review and merge the PRs myself. This is an interim account:
 the manually merged charging/session slice adds durable state transitions, API-backed
-session views and an Authorize-only probe. The current scenario slice is awaiting my
-manual PR review; final submission acceptance remains pending.
+session views and an Authorize-only probe. I also manually merged the scenario slice
+as KWMS PR #3; final submission acceptance remains pending.
 
 I corrected Codex's recommendation of one final PR: I will review and manually merge
 several reasonably sized vertical-slice PRs. I also required actual three-backend
@@ -42,3 +42,14 @@ partial execution marked completed and lost authorization frames during timeout.
 The unchanged CLI retains its original clock/coordination behavior; this adaptation
 is documented rather than presented as the unmodified entrypoint. Codex ran isolated
 PostgreSQL/audit tests, actual three-replica UI smoke and live positive/denied browser QA.
+
+For WP-3a, Codex added deterministic charging/permission/Stop races and a test-only
+process-crash harness, without changing runtime application code. Independent review
+caught a test-design trap: pausing during response validation would precede insertion
+of the replay record, so it would not prove rollback of all three atomic effects.
+The implemented pre-commit hook flushes and reads back domain/audit/inbox SQL state;
+the post-commit hook pauses before protocol send. Only an owned child against an
+explicit test database is killed. Three independent pools/services are not presented
+as three separately killed OS processes; the actual deployed three-replica smoke is
+separate evidence. Candidate review/manual merge and later WP-3b/final acceptance
+remain pending.

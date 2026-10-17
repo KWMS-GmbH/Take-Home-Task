@@ -109,9 +109,11 @@ Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`
 
 ## WP-2 — Session correctness, audit and scenario experience
 
-Status: locally verified and published for candidate review in
-[KWMS PR #3](https://github.com/KWMS-GmbH/Take-Home-Task/pull/3).
-Current-head CI readiness is visible in PR Checks; candidate review/merge is pending.
+Status: done. Candidate manually merged
+[KWMS PR #3](https://github.com/KWMS-GmbH/Take-Home-Task/pull/3) on 2026-10-17 at
+16:11:04 Europe/Berlin, merge `e0b51fc65e65f7304266a03e3090ab2c682e1a3a`.
+Its tree matches reviewed head `8b45a72`; local main is synchronized.
+[Reviewed-head CI passed](https://github.com/KWMS-GmbH/Take-Home-Task/actions/runs/39035541045).
 Candidate approved D-28–D-30: bounded sequential execution,
 one UI run per station/start spacing and transient reports with durable sessions/
 audit. Concrete contract is in SPEC.md; [plan](plans/WP-2.md) persisted.
@@ -131,14 +133,17 @@ adapter and backend token checks, preserving originals and established retry rul
 - [x] Static checks, 255-test suite, deployed all-eight smoke and live browser QA.
 - [x] Publish layered KWMS PR with local verification and review focus; current-head
   remote checks determine ready status before handoff, not a fixed green checkbox.
-- [ ] Candidate manually reviews and merges; no dependent WP-3 implementation before merge.
+- [x] Candidate manually reviews and merges; merge/tree/source identity confirmed
+  before WP-3 preparation.
 
 Acceptance: scenarios 01–06/08 have correct visible data; required UI fields are present;
 case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 
 ## WP-3 — Three-replica reliability and bounded operation
 
-Status: proposed; depends on WP-2. Extend WP-1a's ownership/pool/migration foundations
+Status: candidate approved two PRs, isolated fault tests and conservative retention
+on 2026-10-17 (D-31/D-32). WP-3a in progress under the concrete SPEC.md contract and
+[persisted plan](plans/WP-3a.md); WP-3b waits for its manual merge. Extend existing foundations
 to charging races, crashes, load, retention and operational recovery.
 
 - [ ] Discuss fencing/takeover and database budget; update spec and persist plan.
@@ -154,6 +159,33 @@ to charging races, crashes, load, retention and operational recovery.
 
 Acceptance: all original cases plus U-SCALE work with three replicas. If scope/time requires
 an omission, obtain a visible scope decision and retain it as incomplete in the matrix.
+
+Approved split: **WP-3a** deterministic race/process-crash correctness, then **WP-3b**
+bounded operation/dependency recovery/maintenance. Failures run only on isolated test
+resources. Preserve sessions, meter evidence/business audit and current-generation
+replay rows; WP-3b may clean only superseded replay rows in bounded batches, with its
+concrete safeguards still to be specified. No new deployed service/autoscaling/HA.
+
+### WP-3a — charging races and process-crash correctness
+
+Status: locally verified and published in
+[KWMS PR #4](https://github.com/KWMS-GmbH/Take-Home-Task/pull/4).
+Current-head CI is visible in PR Checks; candidate review/manual merge pending.
+Branch `codex/reliability-slice`; production application/schema/deployment unchanged.
+
+- [x] Candidate approves scope/boundaries; record concrete spec and implementation plan.
+- [x] Deterministic three-instance Start/connector, permission, Stop and stale-writer races.
+- [x] Actual test-child Start/Stop death before commit and after commit/before response.
+- [x] Exact API/PG/inbox/audit/retry assertions, bounded cleanup and repeated focused runs.
+- [x] Full regression/static/source gates, actual deployed smoke and independent reviews.
+- [x] Publish layered KWMS PR with actual local gates and review focus; current-head
+  remote checks gate ready status before handoff rather than a fixed green checkbox.
+- [ ] Candidate manually reviews/merges before WP-3b implementation.
+
+### WP-3b — bounded operation, recovery and safe maintenance
+
+Not started. Discuss concrete workload/maintenance safeguards after WP-3a's merge;
+retain the approved boundaries without claiming that load/recovery/retention is proven.
 
 ## WP-4 — Independent acceptance and submission
 
@@ -353,3 +385,42 @@ commit, findings addressed, and remaining limitations at each gate.
   Final documentation review narrowed failure wording and removed stale WP-3 browser
   scope; source/whitespace checks pass. Current-head remote CI is a separate gate,
   and only the candidate may merge. No dependent WP-3 implementation started.
+- WP-2 completion: GitHub confirms manual merge at `2026-10-17T14:11:04Z`, merge
+  `e0b51fc`. Its tree matches reviewed `8b45a72`, whose CI run `39035541045` passed.
+  Local main fast-forwarded and assignment integrity passes. New preparation branch:
+  `codex/reliability-slice`. This is merge/source evidence, not a fresh full runtime
+  suite or approval of unresolved WP-3 mechanics.
+- WP-3a preparation: candidate approved D-31/D-32. Independent design review found
+  that a response-validator pause precedes inbox insertion, so it cannot prove
+  rollback of every atomic effect. Test-local pre-commit instrumentation instead
+  flushes and queries target domain/audit/inbox SQL state; post-commit instrumentation
+  pauses after service return, before protocol send. No production hook or behavior
+  change was needed. The optional pytest-argument test entrypoint preserves the same
+  isolated database/container lifecycle and full-suite default.
+- WP-3a local gates: focused charging races **12 passed**; process death/database
+  guards **10 passed**. After removing a new deprecated Result.tuples conversion,
+  two combined repeats each pass **22 tests**, warning-free (4.95s / 5.10s).
+  `make check` passes all static/config/source/10 guard checks; `make test` passes
+  **277 tests** against isolated PostgreSQL (21.26s). All disposable test resources
+  are cleaned automatically. These durations are observations, not performance goals.
+- WP-3a deployed gate: normal `make smoke` passes against three actual Swarm task
+  addresses, including shared authorization, fencing/continuation, all-eight UI/API
+  results and denied-run gating. No fault was injected into the live stack and no
+  local redeploy was needed because backend/frontend/schema/config/dependency trees
+  are unchanged from merged `e0b51fc`; source/whitespace guards pass. Existing WP-2
+  visual QA remains the UI evidence; no new browser behavior or visual pass claimed.
+- WP-3a code/architecture review: no remaining blocker. Controlled PG lock waits
+  prove real contention, not just unfinished tasks; instances retain legitimate
+  generations. Child barriers and independent API/PG reads distinguish rollback
+  from committed-but-unreplied work; live receive/socket closure and new-connection
+  retries prove one business completion without dead-inbox replay. Race tests use
+  three pools/services in one process; crash tests kill one actual child with two
+  survivors in the parent, not three killed/raced Swarm processes. Dependency/load/
+  retention and host/database HA are not claimed. Candidate manual review remains.
+- WP-3a publication: approved process/spec records, deterministic races (`13aed6a`),
+  owned-child crash proof (`dd14b07`) and review/evidence (`f0e3958`) pushed to KWMS.
+  PR #4 provides outcome, business/technical flows, decisions/risks, exact evidence,
+  file route and interview-preparation guide. Independent documentation/description
+  review found no actionable inconsistency; original requirement definitions and
+  runtime/source trees remain unchanged. Current-head CI and candidate manual merge
+  remain separate gates; no WP-3b implementation started.
