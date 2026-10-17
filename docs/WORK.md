@@ -267,8 +267,9 @@ Candidate manual review/merge remains; WP-R3 has not started.
 Initial CI failure: run `39069933611` passes static checks and **337 pytest cases**,
 then an unchanged fake-controller test fails a synthetic command deadline. Real DB
 recovery/fresh Swarm CI stages were not reached. Candidate approved the test-only
-clock repair in the plan. It is implemented with two regressions; full local and
-exact-head remote verification must pass before readiness, not an unchanged rerun.
+clock repair in the plan. Repair `d937f7a` passes 18 focused and 340 full pytest cases,
+static/source gates, actual owned-volume DB recovery and normal three-replica smoke.
+Exact-head remote verification remains before readiness, not an unchanged rerun.
 
 Candidate explicitly authorized frontend/simulator first, documentation afterward.
 Concrete unchanged-behavior contract in SPEC.md; [persisted plan](plans/WP-R2.md).
@@ -278,6 +279,7 @@ Concrete unchanged-behavior contract in SPEC.md; [persisted plan](plans/WP-R2.md
 - [x] Focused/full/static/source/recovery/deploy/smoke and live browser QA.
 - [x] Independent code/architecture equivalence/readability review; no blocker.
 - [x] Final evidence/description review and proactive layered KWMS PR; exact-head CI gates readiness.
+- [x] Separately approved test-only CI clock repair, red/green regressions and local gates.
 - [ ] Candidate reviews/manually merges; documentation rewrite waits.
 
 ### WP-R3 — Top-down documentation and decision log
@@ -695,3 +697,23 @@ commit, findings addressed, and remaining limitations at each gate.
   actual checks and interview/review route. Independent final documentation/
   description review finds no blocker. Current-head CI controls readiness; candidate
   alone reviews/merges, and WP-R3 documentation implementation waits for that merge.
+- WP-R2 initial remote failure: run `39069933611` at `7389774` passes static and
+  **337 pytest cases**, but an unchanged fake-controller late-marker test hits a
+  command deadline. Recovery and fresh Swarm stages are not reached. The harness's
+  50ms observation sleeps shrink the tick-based five-second watchdog to about 250ms;
+  the exact remotely timed-out command is unknown. An unchanged local controller
+  repeat and a CPU-limited diagnostic pass, not a claimed local reproduction.
+- Candidate explicitly approved test-only repair `d937f7a`: a passive real watchdog
+  has a separate owned PID, is stopped/reaped on completion/timeout/trap cleanup and
+  never independently signals another process. Command exit status, configured
+  budgets, resource guards, marker semantics and production settings remain intact.
+  A 0.6s mock preflight command fails under the old clock (0.44s) and passes after
+  repair; an overdue owned mock client still aborts before creation/outage actions.
+  Failure assertions retain fake-command context. No original assertion weakened.
+- Repaired gates: **18 focused startup/controller cases pass** (20.08s), `make check`
+  passes source/10 guard/config/shell/format/lint/43-module typing, and full pytest
+  passes **340 cases** (56.18s). Actual isolated volume-backed PostgreSQL recovery
+  passes with the same three app/pool/listener instances; normal deployed three-task
+  smoke also passes. No live fault, purge or new UI change/visual check. Independent
+  code/architecture impact review finds no blocker; INT/TERM injection and arbitrary
+  descendant-process cases are not claimed. Final-head remote CI remains separate.

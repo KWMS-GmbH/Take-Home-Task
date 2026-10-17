@@ -57,4 +57,6 @@ controller group passes 18 cases (20.08s), including a genuinely overdue owned c
 that aborts before any resource creation/outage. Static/source gates and normal
 three-replica smoke also pass. Independent read-only review finds no blocking timer,
 exit-status or ownership issue. Signal injection and every descendant-process case
-are not established by these tests; full/recovery/exact-head CI gates remain.
+are not established by these tests. Full pytest passes 340 cases (56.18s), and the
+actual isolated owned-volume PostgreSQL recovery passes with unchanged app instances.
+Exact-head remote CI and candidate review/merge remain gates.
