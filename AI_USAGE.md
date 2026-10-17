@@ -26,3 +26,8 @@ cutoff could split an active long session; an impossible Stop time could leave i
 active forever). Code review/tests then caught an empty protocol tag rejected by
 the identity helper, Decimal context rounding, late-meter contradictions and completed
 summaries changing after late evidence. These were repaired with regression tests.
+
+During my UI review I requested varied visible examples. Codex added an explicit
+HTTP/OCPP demo command, verified repeatability/non-destructive refusal in integration
+tests and inspected all seven actual session pages in the live browser. These are
+illustrative data for the existing rules, not a replacement for supplied scenarios.

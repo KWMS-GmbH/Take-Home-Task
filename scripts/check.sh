@@ -26,6 +26,6 @@ sh -n deploy.sh scripts/*.sh
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover \
     -s tests -p 'test_assignment_guard.py' -v
 python -m pip check
-ruff format --check backend frontend tests scripts/stack_smoke.py
-ruff check backend frontend tests scripts/stack_smoke.py
+ruff format --check backend frontend tests scripts
+ruff check backend frontend tests scripts
 mypy backend frontend

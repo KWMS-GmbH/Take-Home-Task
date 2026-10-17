@@ -92,6 +92,28 @@ messages, the supplied check lines, and its sessions with status, start, stop,
 duration, and energy. Provide a station-filtered sessions list. Unknown/provisional
 values must be visibly distinct from zero or confirmed facts.
 
+### Opt-in review examples — U-DEMO
+
+Candidate requested varied visible session examples while reviewing WP-1b. Add an
+explicit container-run `make demo-sessions` command, not automatic startup seeding.
+Use real management HTTP and OCPP messages, never direct database inserts or mocked
+UI values. Seven dedicated `DEMO-*` stations illustrate two completed totals/durations,
+active/provisional charging, reboot interruption, backwards meters, a blocked
+interrupted attempt with bad meter evidence, and an unknown-tag active attempt.
+The existing terms remain unchanged: incomplete attempts are active/interrupted;
+untrusted meters are suspicious/unknown, not a new `invalid` meter enum. Unknown-tag
+authorization is Invalid. No charging/billing/security policy changes.
+
+Use fixed, clearly illustrative event times. Re-running verifies existing session
+identity/headline outcomes and reuses them rather than adding duplicate sessions or
+relying on the Start grace window. Empty reserved stations may be populated; existing
+sessions with partial/different headline outcomes cause a clear failure, not silent
+overwrite, repair or deletion. This is not a checksum of every raw audit/evidence row.
+Permission setup touches only newly populated named demo station/
+tag pairs. Existing other records remain intact; fresh deployment still starts empty.
+These custom review examples do not replace unchanged supplied-scenario acceptance
+or the full scenario UI planned for WP-2.
+
 ### D-23 — Authorization-only probe: approved rationale and caveat
 
 Status: implemented and locally verified in WP-1b; candidate PR review/merge remains

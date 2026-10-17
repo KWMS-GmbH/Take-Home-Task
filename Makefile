@@ -1,4 +1,4 @@
-.PHONY: verify-assignment test-assignment-guard check test build deploy demo-data logs teardown smoke
+.PHONY: verify-assignment test-assignment-guard check test build deploy demo-data demo-sessions logs teardown smoke
 
 verify-assignment:
 	@./scripts/verify-assignment.sh
@@ -21,6 +21,9 @@ deploy:
 
 demo-data:
 	@./scripts/demo-data.sh
+
+demo-sessions:
+	@sh ./scripts/demo-sessions.sh
 
 logs:
 	@./scripts/logs.sh

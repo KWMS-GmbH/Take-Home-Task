@@ -90,3 +90,22 @@ case/failure proof remain WP-2/WP-3.
 Planned coherent commits: session/domain migration with tests; HTTP/UI vertical
 slice with scenario acceptance; review/deployment repairs and evidence as needed.
 Adjust to actual changes and reviewability, not arbitrary line counts.
+
+## Candidate-requested review examples amendment
+
+Scope: explicit opt-in illustrative data using the implemented contract, not WP-2
+scenario UI or new domain behavior. Candidate requested this while reviewing PR #2.
+
+1. Add a container-run command using management HTTP plus real OCPP to create seven
+   reserved demo stations with distinct energy/duration/state combinations.
+2. Verify API postconditions and reuse exact existing examples on rerun. Never delete
+   records or silently rewrite modified/partial examples; preserve unrelated data.
+3. Add real PostgreSQL/WebSocket integration coverage for all example outcomes,
+   repeat invocation and preservation/failure boundaries.
+4. Run growing checks/review and live browser QA; amend PR #2 with actual evidence.
+   Candidate manual review/merge remains the gate before dependent WP-2 work.
+
+Execution: command ran twice against the deployed stack with seven stable IDs;
+all seven detail views were observed in the browser. Static checks, 134-test suite
+and deployed three-replica smoke pass. Current review/publication evidence lives
+in WORK.md/PR #2; full scenario UI still belongs to WP-2.

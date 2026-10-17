@@ -101,6 +101,8 @@ Branch: `codex/session-slice`, fast-forwarded onto canonical KWMS main `2abf0cc`
   findings repaired and regression-tested. Publication/final evidence follows below.
 - [x] Publish locally verified WP-1b PR in KWMS with layered review/presentation guide;
   confirm current-head checks/ready status before the candidate handoff.
+- [x] Candidate-requested opt-in varied demo sessions: real HTTP/OCPP, repeat/refusal
+  tests and actual visible browser examples; no new lifecycle/quality or billing policy.
 - [ ] Candidate manually reviews/merges WP-1b before dependent WP-2 work.
 
 ## WP-2 — Session correctness, audit and scenario experience
@@ -284,3 +286,16 @@ commit, findings addressed, and remaining limitations at each gate.
   This handoff-record amendment changes no application behavior; assignment guard
   and whitespace checks pass. The candidate alone reviews/merges; current-head Checks
   determine readiness rather than a permanently green documentation checkbox.
+- WP-1b candidate-requested demo amendment: added `make demo-sessions`, not startup
+  seeding. It creates seven dedicated station examples with fixed illustrative UTC
+  event times using management HTTP plus real OCPP. Two deployed invocations return
+  the same seven IDs; existing CHECK/CP records remain intact. Live browser verified
+  every detail view, plus blocked station history and its Interrupted/Blocked/
+  Suspicious/Not eligible result; screenshot saved outside the repository. No app
+  image or domain policy changed. `make check`, **134-test** suite and actual
+  three-replica `make smoke` pass. Initial new tests had a mismatched test-listener
+  instance ID; corrected the fixture wiring before the passing run. Three focused
+  tests cover outcomes/repeatability, unrelated-data preservation, unknown-tag
+  collision and refusal to reset modified examples. Full original-scenario UI remains
+  WP-2 and these examples do not replace its acceptance proof. Independent
+  code/architecture and documentation review found no remaining actionable issue.

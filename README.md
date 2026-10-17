@@ -40,9 +40,32 @@ creates them; `make smoke` automatically creates a complete CHECK-CP/CHECK-TAG
 
 ```sh
 make demo-data                    # explicit, idempotent CP-001 / TAG-42 / TAG-BLOCKED
+make demo-sessions                # seven real examples, visible immediately in Sessions
 make logs                         # retained, timestamped service logs
 make teardown                     # removes this stack, PRESERVES database and secrets
 ```
+
+`make demo-sessions` uses real HTTP/OCPP and prints direct UI links. It creates
+dedicated `DEMO-*` stations and `DEMO-ALLOWED`/`DEMO-BLOCKED` tags; it leaves
+`DEMO-UNKNOWN-TAG` unregistered. Fixed illustrative event times are on October 17,
+2026, UTC. It never runs automatically, deletes data or repairs changed/partial
+session outcomes. Re-running verifies/reuses existing examples without duplicates;
+empty reserved stations may be populated. Use those station IDs only for these
+examples, not independent simulations. Active describes durable lifecycle, not a
+currently connected socket; an incomplete session has no invented final duration.
+
+| Station | Visible result |
+| --- | --- |
+| DEMO-HOME | Completed, Accepted, valid meters: 7.2 kWh / 2 hours, eligible prerequisites |
+| DEMO-OFFICE | Completed, Accepted, valid meters: 22.5 kWh / 90 minutes, eligible prerequisites |
+| DEMO-CHARGING | Active, Accepted: 2.4 kWh provisional, final duration unknown, not eligible |
+| DEMO-REBOOT | Interrupted, Accepted: 6.0 kWh provisional, stop/duration unknown, not eligible |
+| DEMO-BAD-METER | Completed, Accepted: 45 minutes, suspicious backwards meter, energy unknown, not eligible |
+| DEMO-BLOCKED | Interrupted, Blocked: suspicious non-numeric reading, energy/duration unknown, not eligible |
+| DEMO-UNKNOWN | Active, Invalid tag: meter quality/energy/duration unknown, not eligible |
+
+These are review examples of existing rules, not the full supplied-scenario UI or
+new lifecycle/quality labels. Custom examples do not replace original scenario tests.
 
 Redeploy with `./deploy.sh`; existing data and secrets are reused. Do not delete the
 database volume or rotate its password secret independently: the initialized database
