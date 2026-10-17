@@ -146,6 +146,10 @@ actually tests persistence. Its host controller verifies generated project/name/
 ownership before each fault and cleanup; the checker gets no Docker socket. Existing
 target collisions or unreadable ownership/absence checks abort. Test resources are
 removed afterward; no live database/stack is stopped.
+Its disposable Compose file secret is readable by the non-root tooling UID inside
+a private `0700` host directory; production Swarm secrets are unchanged. Startup
+errors report only their type, and an exited checker fails early rather than being
+misreported as a phase timeout.
 
 Focused checks use the same isolated lifecycle; omit arguments for the full suite:
 

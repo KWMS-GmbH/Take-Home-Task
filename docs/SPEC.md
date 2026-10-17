@@ -548,7 +548,7 @@ authorizes implementation, not a claim that the behavior is implemented or verif
 | Q-02 | Resolved: pinned public API/raw filter, malformed-input/output validation and exact extra-field wire/collision coverage for Boot/Authorize plus all four charging actions pass. Broader fuzzing is not claimed. | Closed in WP-2 |
 | Q-03 | Resolved: D-25–D-27/D-12 rules and all eight adapter/API/DB outcomes/browser results verified; candidate manually merged WP-2. Later crash/concurrency proof remains Q-04. | Closed in WP-2 |
 | Q-04 | WP-3a merged; D-33/D-34 implemented. WP-3b focused/full/static checks, repeated owned volume-backed graceful DB restart and normal three-task redeploy/smoke pass (WORK.md). Candidate review/current-head CI remain separate. No fleet-capacity, HA or network-blackhole guarantee from configured SQL timeouts. | WP-3b review, WP-4 |
-| Q-05 | D-35 cleanup safeguards implemented: station-specific dry-run/apply, seven-day DB age, cap100 and atomic summary audit. Exclusion/rollback/concurrency/retry and full gates pass; deployed CLI verified dry-run only. Business/current/pending evidence retained. Candidate review/current-head CI pending; no external diagnostic-durability promise. | WP-3b review, WP-4 |
+| Q-05 | D-35 cleanup safeguards implemented: station-specific dry-run/apply, seven-day DB age, cap100 and atomic summary audit. Exclusion/rollback/concurrency/retry and full local gates pass; deployed CLI verified dry-run only. Business/current/pending evidence retained. Candidate manual review and final reconciliation remain; current-head Checks determine CI readiness. No external diagnostic-durability promise. | WP-3b review, WP-4 |
 | Q-06 | Access/integration resolved: candidate manually merged KWMS PR #1 (`2abf0cc`), both fork merge ancestors are verified, and KWMS is now canonical. Final complete submission/verification remains pending in WP-4; the fork retains original review records. | Candidate, Codex |
 | Q-07 | Resolved: Authorize-only probe, unchanged originals, ownership warning, active-view preservation/stale rejection and all-eight browser experience verified and manually merged. | Closed in WP-2 |
 | Q-08 | Resolved: D-28–D-30 implemented with source integrity, exact correlation, partial/deadline evidence, independent review, passing reviewed-head CI and candidate manual merge. Initial demo bounds are not capacity proof; Q-04/Q-05 remain. | Closed in WP-2 |
@@ -649,6 +649,12 @@ authorizes implementation, not a claim that the behavior is implemented or verif
   live maintenance dry-run. No UI policy changed. Independent review found no
   remaining blocker; current-head CI and candidate manual review/merge still gate
   completion. Full final acceptance remains WP-4, not inferred from these checks.
+- WP-3b clean-run CI then passed 316 pytest cases but failed before the recovery
+  outage began. Candidate approved the harness-only Linux file-permission/startup
+  reporting repair. Its 16 focused regressions, 324-test suite, static checks,
+  two actual isolated recovery runs and normal three-task smoke pass locally.
+  Code/architecture impact self-reviewed; no charging or production-secret change.
+  Current-head CI and candidate manual review/merge remain separate gates.
 
 References: [OCPP-J specification, §4.1.4](https://github.com/mobilityhouse/ocpp/blob/master/docs/v16/ocpp-j-1.6-specification.pdf),
 [evaluated library dispatch](https://github.com/mobilityhouse/ocpp/blob/2.1.0/ocpp/charge_point.py),

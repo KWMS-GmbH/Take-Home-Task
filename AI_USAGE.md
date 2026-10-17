@@ -63,3 +63,10 @@ were added before any real outage test. The recovery test then stopped/restarted
 its generated, label-verified volume-backed DB; no live-stack fault or cleanup apply
 was performed. Three test app instances share one process; normal Swarm smoke is
 separate evidence. Scope excludes HA and arbitrary network-blackhole guarantees.
+
+Clean-run CI then passed all 316 pytest tests but exposed a recovery-harness startup
+failure hidden by a phase timeout. Code review identified the Linux mismatch between
+a runner-owned `0600` Compose file secret and tooling UID 10001; Compose file mounts
+do not remap that ownership. I approved a test-only permission fix inside its private
+directory, sanitized startup errors and early checker-exit detection. Added regressions
+cover those boundaries; no production secret or charging policy was changed.

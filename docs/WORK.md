@@ -144,7 +144,7 @@ case 9 is tested/explained. Connection/concurrency hardening completes in WP-3.
 Status: candidate approved two PRs, isolated fault tests and conservative retention
 on 2026-10-17 (D-31/D-32). WP-3a manually merged; candidate explicitly approved WP-3b
 defaults (D-33–D-35). Local implementation/verification follows SPEC.md and
-[plan](plans/WP-3b.md); WP-3b publication/current-head CI and manual merge remain.
+[plan](plans/WP-3b.md); WP-3b current-head CI and manual merge remain.
 
 - [x] Discuss fencing/takeover and database budget; update spec and persist plan.
 - [x] Stress the delivered connector-uniqueness and charging-lock invariants with
@@ -195,6 +195,13 @@ after the local readiness gates passed. Branch `codex/operations-slice`, based o
 manually merged WP-3a `3699be9`; concrete contract and plan persisted. Current-head
 Checks gate ready status before handoff; candidate review/manual merge is still
 required and WP-4 has not started.
+
+CI repair implemented and locally verified after candidate approval: run `39045326042` at `f216a13`
+passed static checks/316 pytest cases, then timed out before recovery's
+`ready_to_stop`. No fault was injected and CI did not reach fresh Swarm deployment.
+The approved fix (`2fa10dc`) addresses test-only Linux secret readability and
+startup/exit diagnostics. The 324-test suite, repeated owned recovery/static gates
+and normal three-task smoke pass; exact-head CI still gates removal of draft status.
 
 Approved defaults, with concrete safeguards in SPEC.md:
 
@@ -511,3 +518,33 @@ commit, findings addressed, and remaining limitations at each gate.
   exact-head CI runs; source and whitespace guards pass. Current-head Checks
   determine ready status before handoff; only the candidate may merge. No WP-4
   implementation, live outage, cleanup apply or production readiness claim.
+- WP-3b CI diagnosis: [run 39045326042](https://github.com/KWMS-GmbH/Take-Home-Task/actions/runs/39045326042)
+  at `f216a13` passes static checks and **316 pytest cases** (52.61s), then fails
+  waiting for recovery `ready_to_stop`; no outage was injected and fresh Swarm CI
+  deployment did not run. Linux file-backed Compose secret permissions differ from
+  the local Desktop behavior: runner-owned 0600 cannot serve non-root tooling UID
+  10001. The early configuration exception previously bypassed reporting. Candidate
+  approved the scoped repair; original assignment, production secrets/behavior and
+  existing local evidence are unchanged. Repair results follow below.
+- WP-3b approved CI repair (`2fa10dc`): generated Compose secret is 0444 inside
+  its private 0700 directory, preserving the unprivileged checker and read-only mount.
+  Validate scope before failure markers, sanitize even configuration failures, retain
+  original errors if marker writing fails, and inspect exact-owned checker exit
+  without waiting for the phase timeout. Recheck markers after state inspection to
+  avoid rejecting a result published immediately before exit. No longer timeout,
+  production secret/runtime, dependency, migration or original-source change.
+- WP-3b repair gates: final focused startup/controller group **16 passed** (11.30s);
+  `make check` passes all source/static/config/10 guard cases; full `make test`
+  passes **324 pytest tests** (42.39s) plus the real owned-volume recovery gate.
+  Recovery also passes standalone: two actual recovery runs after repair. Normal
+  `make smoke` passes again against the existing three actual backend tasks,
+  including all eight UI/API outcomes and denied gating. Runtime trees are unchanged
+  from the already redeployed WP-3b images, so no new local redeploy was necessary.
+  No live outage/apply or new visual-browser claim. Disposable recovery resources
+  checked for cleanup; current-head remote CI remains a separate readiness gate.
+- CI repair code/architecture impact self-review covers private-directory/read-only
+  secret exposure, fail-closed exact-owned state inspection, no unvalidated marker
+  writes, redaction, original-error preservation and final-marker/exit ordering.
+  Focused regressions pass; no remaining issue found. Prior independent WP-3b
+  reviews remain the broader review evidence; no new independent-agent repair
+  review is claimed. Candidate manual review/merge and WP-4 still remain.

@@ -46,6 +46,12 @@ for reconciliation with the candidate first.
   clients; only PostgreSQL is an independently restarted container. These are not
   three-backend-process or Swarm-chaos tests. Full/static/repeated/deployed outcomes
   are recorded in WORK.md only after execution; focused passes do not imply those gates.
+- The approved WP-3b CI-harness repair adds permission/private-directory, sanitized
+  startup/invalid-scope/marker-error and checker-exit ordering regressions. The final
+  focused startup/controller group passes 16 cases (11.30s). Actual repeated recovery,
+  full/static/smoke results are recorded in WORK.md; no production-secret change or
+  broader failure/HA claim. The earlier CI run's 316-test pass followed by pre-outage
+  harness failure is preserved separately from local success and final-head CI.
 
 ## Original requirements
 

@@ -75,3 +75,9 @@ Linux file-secret permissions are the leading cause; no DB outage was injected.
    and code/architecture review, update evidence, push and wait exact-head CI.
 4. Keep PR #5 draft until green; candidate alone reviews/merges. Production code,
    secret handling and charging/session semantics remain unchanged by this repair.
+
+Repair execution: `2fa10dc`; 16 focused cases (11.30s), 324 full pytest cases
+(42.39s), static/source gates, two actual owned-volume recovery runs and normal
+three-task UI/API smoke pass locally. Code/architecture impact self-review found
+no remaining issue; no new independent-agent review is claimed. Current-head CI
+and candidate manual review/merge remain separate gates.
