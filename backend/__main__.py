@@ -61,11 +61,14 @@ async def main() -> None:
         ) as listener:
 
             async def ready() -> None:
-                if not listener.is_serving():
-                    raise RuntimeError("OCPP listener not serving")
                 await check_database(engine)
 
-            app = create_app(service, readiness_check=ready, instance_id=settings.instance_id)
+            app = create_app(
+                service,
+                readiness_check=ready,
+                instance_id=settings.instance_id,
+                liveness_check=listener.is_serving,
+            )
             server = uvicorn.Server(
                 uvicorn.Config(
                     app,
