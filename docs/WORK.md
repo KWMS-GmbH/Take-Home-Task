@@ -242,10 +242,11 @@ No original requirement or working domain policy is replaced by this cleanup.
 
 ### WP-R1 — Backend readability
 
-Status: awaiting candidate review/merge in
-[KWMS PR #6](https://github.com/KWMS-GmbH/Take-Home-Task/pull/6).
-Local gates pass; current-head Checks determine readiness, with pending/failed CI
-keeping the PR draft. Branch `codex/backend-readability`, based on `9c66794`.
+Status: done. Candidate manually merged
+[KWMS PR #6](https://github.com/KWMS-GmbH/Take-Home-Task/pull/6) at 22:56:03
+Europe/Berlin on 2026-10-17 as `3e3c85400d271bec08d36b4d0cc1f762a3df1d7d`.
+Its tree matches reviewed `689cb28`; reviewed-head CI `39066725682` passed.
+Local main is synchronized; merged-main CI is checked separately.
 Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
 
 - [x] Targeted grilling/approval, baseline risk review, concrete contract and plan.
@@ -254,14 +255,19 @@ Concrete contract in SPEC.md; [persisted plan](plans/WP-R1.md).
 - [x] Useful baseline characterization, unchanged original tests and failure boundaries.
 - [x] Static/full/recovery/redeploy/smoke gates and independent equivalence/readability review.
 - [x] Publish layered KWMS PR; exact-head CI gates ready status before handoff.
-- [ ] Candidate manually reviews/merges; no dependent implementation beforehand.
+- [x] Candidate manually reviews/merges; tree/source identity confirmed before WP-R2.
 
 ### WP-R2 — Frontend/simulator readability
 
-Approved next scope; waits for WP-R1 manual merge. Separate simulation orchestration,
-API-result interpretation, projection and routes where that improves followability.
-Preserve all user-visible behavior, admission/token/deadline bounds and API-only access.
-Its concrete plan/spec review precedes implementation.
+Status: in progress on `codex/frontend-readability`, based on merged `3e3c854`.
+Candidate explicitly authorized frontend/simulator first, documentation afterward.
+Concrete unchanged-behavior contract in SPEC.md; [persisted plan](plans/WP-R2.md).
+
+- [x] Confirm manual prerequisite merge, review boundaries and persist contract/plan.
+- [ ] Baseline characterization, cohesive client/view/route/playback/check extraction.
+- [ ] Focused/full/static/source/recovery/deploy/smoke and live browser QA.
+- [ ] Independent code/architecture/evidence review and proactive layered KWMS PR.
+- [ ] Green exact-head CI, candidate review/manual merge; documentation rewrite waits.
 
 ### WP-R3 — Top-down documentation and decision log
 
